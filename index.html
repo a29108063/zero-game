@@ -34,7 +34,7 @@
     .author-badge { font-size: 0.85rem; color: #ffd54f; font-weight: bold; background: #2a2a2a; border: 1px solid #ffd54f; padding: 2px 8px; border-radius: 4px; }
 
     .timer { font-size: 1.4rem; color: #ff5252; font-weight: bold; text-align: center; margin-bottom: 12px; border: 1px dashed #ff5252; padding: 6px; border-radius: 4px; background: rgba(255, 82, 82, 0.05); }
-    .status-bar { display: flex; justify-content: space-between; background: #2a2a2a; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 0.9rem; }
+    .status-bar { display: flex; justify-content: space-between; background: #2a2a2a; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 0.9rem; flex-wrap: wrap; gap: 6px; }
     .title-row { margin-bottom: 12px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
     .title-badge { background: #ff9800; color: #121212; font-weight: bold; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block; }
     
@@ -42,7 +42,7 @@
     .news { background: #252526; border-left: 4px solid #00e676; padding: 10px; margin-bottom: 12px; font-size: 0.9rem; line-height: 1.4; }
     .story-box { background: #2a1b1b; border: 1px dashed #ff5252; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.5; color: #ffccbc; }
     
-    .btn { display: block; width: 100%; padding: 11px; margin: 6px 0; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer; text-align: left; font-size: 0.9rem; transition: background 0.2s; }
+    .btn { display: block; width: 100%; padding: 11px; margin: 6px 0; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer; text-align: left; font-size: 0.88rem; transition: background 0.2s; }
     .btn:hover { background: #444; border-color: #888; }
     .btn-next { background: #2e7d32; text-align: center; font-weight: bold; font-size: 1.05rem; margin-top: 12px; border-color: #388e3c; }
     .btn-next:hover { background: #388e3c; }
@@ -91,6 +91,7 @@
     <div class="status-bar">
       <div>💰 總資產: $<span id="assets">1,000,000</span></div>
       <div>🧠 心理 HP: <span id="hp">100</span>%</div>
+      <div>📊 加權指數: <span id="taiex">40,000</span> 點</div>
       <div>📅 Day <span id="day">1</span></div>
     </div>
     <div class="title-row">
@@ -102,22 +103,77 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics.js";
+  import { getDatabase, ref, push, get, query, orderByChild } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD_Tx-yR_1K1-xibYx6pQ45ISshKyDgeCU",
+    authDomain: "zero-9be4e.firebaseapp.com",
+    databaseURL: "https://zero-9be4e-default-rtdb.firebaseio.com",
+    projectId: "zero-9be4e",
+    storageBucket: "zero-9be4e.firebasestorage.app",
+    messagingSenderId: "794711311986",
+    appId: "1:794711311986:web:3be66140611a6fb6ab24eb",
+    measurementId: "G-RWT8QXHN4M"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getDatabase(app);
+
+  // 10 個早盤市場環境
   const environments = [
-    { name: '【牛市狂歡】', change: '+1.5%', type: 'up', news: '美股科技股大漲，外資強勢歸隊，台股跳空開高衝刺！' },
-    { name: '【熊市反彈】', change: '-1.2%', type: 'down', news: '美股暴跌震盪，台股開盤重挫，散戶恐慌殺出！' },
-    { name: '【高檔震盪】', change: '+0.1%', type: 'up', news: '多空交戰劇烈，台積電狹幅平盤震盪，方向不明。' },
-    { name: '【主力洗盤】', change: '-0.8%', type: 'down', news: '早盤急拉後遭外資拋售，甩轎力道極強！' }
+    { name: '【牛市狂歡】', type: 'up', news: '美股科技股大漲，外資強勢歸隊，台股跳空開高衝刺！' },
+    { name: '【熊市反彈】', type: 'down', news: '美股暴跌震盪，台股開盤重挫，散戶恐慌殺出！' },
+    { name: '【高檔震盪】', type: 'up', news: '多空交戰劇烈，台積電狹幅平盤震盪，方向不明。' },
+    { name: '【主力洗盤】', type: 'down', news: '早盤急拉後遭外資拋售，甩轎力道極強！' },
+    { name: '【黑天鵝降臨】', type: 'down', news: '地緣政治風險驟增，夜盤期貨跌停，台股跳空開低爆量下殺！' },
+    { name: '【護國神山拉盤】', type: 'up', news: '台積電法說會震撼市場！利多連發領軍大漲，拉抬加權指數大噴發！' },
+    { name: '【國安基金進場】', type: 'up', news: '政府基金宣佈護盤，低檔護盤買單狂湧，絕地反彈震撼空頭！' },
+    { name: '【量縮死寂盤】', type: 'down', news: '觀望氣氛極濃，預期美聯準會開會，市場成交量創歷史新低，上下震盪極小。' },
+    { name: '【妖股狂飆】', type: 'up', news: '中小型股與概念股無序飆漲！漲停板家數破百，市場投機氣氛達到頂點！' },
+    { name: '【長假前拋售潮】', type: 'down', news: '連假將至，丙種資金結算與散戶抱現金過節賣壓湧現，盤中一路走低！' }
   ];
 
+  // 10 個午盤隨機劇本
+  const midEnvironments = [
+    { name: '【盤中跳水】', type: 'down', news: '午盤獲利了結賣壓湧現，指數急轉直下！' },
+    { name: '【拉尾盤訊號】', type: 'up', news: '內資買單強勢拉抬，指數強勢拉升突破當日高點！' },
+    { name: '【外資瘋狂提款】', type: 'down', news: '外資盤中大舉賣出，大型權值股遭受重創！' },
+    { name: '【主力洗盤誘多】', type: 'down', news: '拉高後爆量下殺，甩轎力道強勁，市場散戶死傷慘重！' },
+    { name: '【橫盤死寂】', type: 'up', news: '多空交戰陷入膠著，買賣力道平勻，股價幾乎不動。' },
+    { name: '【主力鎖漲停】', type: 'up', news: '買單強勢鎖死漲停，市場搶購氣氛高漲，散戶追高！' },
+    { name: '【跌停打開誘空】', type: 'up', news: '爆量打開跌停，逢低買單強勢接盤，掀起反彈浪潮！' },
+    { name: '【當沖客尾盤殺多】', type: 'down', news: '接近一點，無本當沖客強制平倉賣壓排山倒海湧現！' },
+    { name: '【法人暗中吃貨】', type: 'up', news: '投信連買加碼，盤中低點支撐極強，股價步步墊高！' },
+    { name: '【黑天鵝傳言爆發】', type: 'down', news: '盤中突發產業利空消息，市場恐慌賣壓蔓延！' }
+  ];
+
+  // 隨機散戶背景故事庫
   const storyPool = [
     "家道中落，家裡負債累累，你被迫拿僅存的 100 萬積蓄 ALL IN 股市，希望能鹹魚翻身！",
     "被交往五年的女友嫌棄沒出息狠甩，你決定化悲憤為力量，帶著 100 萬投身台股證明自己！",
     "中年失業又逢房貸壓頂，身上僅剩 100 萬退休金，只能在股市裡搏一把生路。",
     "聽信隔壁鄰居明牌買航運慘遭套牢，這次你決定自己當操盤手，把本金凹回來！",
     "剛從大學畢業，把打工存下的 100 萬全部投入當沖，夢想成為下一個少年股神。",
-    "偶然在路上撿到一本神祕的操盤筆記，你毅然決然辭職，攜帶 100 萬資金踏入股市深淵。",
+    "偶爾在路上撿到一本神祕的操盤筆記，你毅然決然辭職，攜帶 100 萬資金踏入股市深淵。",
     "背負沉重學貸與家計，你把最後的 100 萬身家壓在台積電供應鏈上，今晚住公園還是帝寶就看這一次！"
+  ];
+
+  // 畢業遊戲結束隨機稱號庫
+  const gameOverTitles = [
+    '【公園帝寶頂樓戶】',
+    '【北車紙箱國王】',
+    '【龍山寺地墊VIP】',
+    '【乞丐超人現身】',
+    '【山頂套牢榮譽市民】',
+    '【違約交割常勝軍】',
+    '【割韭菜現場遺骸】',
+    '【資產清零藝術家】',
+    '【台股無償獻血志工】',
+    '【滿手套牢阿呆谷谷主】'
   ];
 
   let state = getInitialState();
@@ -128,15 +184,18 @@
       assets: 1000000,
       startDayAssets: 1000000,
       hp: 100,
+      taiex: 40000,
       phase: 'INIT_STORY',
       currentStory: storyPool[Math.floor(Math.random() * storyPool.length)],
       playerName: '',
       currentEnv: null,
+      currentMidEnv: null,
       timer: null,
       timeLeft: 10,
       dailyLog: [],
       dayTradeCount: 0,
-      currentTab: 'history'
+      currentTab: 'history',
+      assignedGameOverTitle: null // 畢業後隨機給予的稱號
     };
   }
 
@@ -148,14 +207,25 @@
 
   function calculateTitle() {
     const profitRate = ((state.assets - 1000000) / 1000000) * 100;
-    if (state.assets <= 0) return '【違約交割畢業生】';
-    if (state.hp <= 0) return '【精神崩潰阿呆】';
-    if (profitRate >= 50) return '【台股少年股神】';
-    if (profitRate >= 20) return '【波段操盤大師】';
-    if (profitRate >= 5) return '【穩健獲利韭菜】';
-    if (profitRate <= -20) return '【山頂套牢榮譽市民】';
+    
+    // 遊戲畢業/死亡，給予隨機搞笑稱號
+    if (state.assets <= 0 || state.hp <= 0) {
+      if (!state.assignedGameOverTitle) {
+        state.assignedGameOverTitle = gameOverTitles[Math.floor(Math.random() * gameOverTitles.length)];
+      }
+      return state.assignedGameOverTitle;
+    }
+
+    // 存活中隨機與條件稱號
+    if (profitRate <= -30) return '【台南反指標】';
+    if (profitRate <= -15 && state.hp < 40) return '【股市冥燈】';
+    if (profitRate >= 60) return '【哲哲接班人】';
+    if (profitRate >= 30) return '【台股少年股神】';
+    if (profitRate >= 10) return '【波段操盤大師】';
     if (state.dayTradeCount >= 3) return '【極限當沖賭王】';
     if (state.day >= 10) return '【資深股市生還者】';
+    if (profitRate < 0) return '【韭菜熟成中】';
+    
     return '【台股新星散戶】';
   }
 
@@ -186,11 +256,12 @@
   function updateHUD() {
     document.getElementById('assets').innerText = state.assets.toLocaleString();
     document.getElementById('hp').innerText = state.hp;
+    document.getElementById('taiex').innerText = state.taiex.toLocaleString();
     document.getElementById('day').innerText = state.day;
     document.getElementById('title-badge').innerText = calculateTitle();
   }
 
-  function switchTab(tab) {
+  window.switchTab = function(tab) {
     state.currentTab = tab;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     if (tab === 'history') {
@@ -225,41 +296,38 @@
     }).reverse().join('');
   }
 
-  // 改為呼叫 Vercel 後台 API Routes 讀取排行榜
   async function renderLeaderboard() {
     const container = document.getElementById('sidebar-content');
-    container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">📡 載入全台少年股神數據中...</div>`;
+    container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">載入全台數據中...</div>`;
 
     try {
-      const res = await fetch('/api/leaderboard');
-      if (!res.ok) throw new Error('API request failed');
+      const scoresRef = query(ref(db, 'leaderboard'), orderByChild('days'));
+      const snapshot = await get(scoresRef);
+      const board = [];
       
-      const board = await res.json();
+      snapshot.forEach((child) => {
+        board.push(child.val());
+      });
+      
+      board.reverse();
 
-      if (!board || board.length === 0) {
-        container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">全台尚無榜單記錄，快衝第一名！</div>`;
+      if (board.length === 0) {
+        container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">全台尚無榜單記錄</div>`;
         return;
       }
 
       container.innerHTML = board.map((item, idx) => `
         <div class="leaderboard-item">
-          <div>
-            <b>#${idx + 1} ${item.name}</b><br>
-            <small style="color:#aaa;">${item.title || '【台股散戶】'}</small>
-          </div>
-          <div style="text-align:right;">
-            <span class="red">存活 ${item.days} 天</span><br>
-            <small>$${(item.assets || 0).toLocaleString()}</small>
-          </div>
+          <div><b>#${idx + 1} ${item.name}</b><br><small style="color:#aaa;">${item.title}</small></div>
+          <div style="text-align:right;"><span class="red">${item.days} 天</span><br><small>$${item.assets.toLocaleString()}</small></div>
         </div>
       `).join('');
     } catch (err) {
-      console.error(err);
-      container.innerHTML = `<div style="color:#ff5252;text-align:center;margin-top:20px;">❌ 讀取排行榜失敗<br><small style="color:#aaa;">請確認 Vercel API /api/leaderboard 正常運行</small></div>`;
+      container.innerHTML = `<div style="color:#ff5252;text-align:center;margin-top:20px;">讀取排行榜失敗</div>`;
     }
   }
 
-  function startGameWithStory() {
+  window.startGameWithStory = function() {
     const nameInput = document.getElementById('setup-name').value.trim();
     if (!nameInput) {
       alert('請先輸入你的散戶名稱才能進入市場！');
@@ -268,32 +336,23 @@
     state.playerName = nameInput;
     state.phase = 'OPEN';
     renderPhase();
-  }
+  };
 
-  // 改為呼叫 Vercel 後台 API Routes 上傳成績
-  async function submitScore() {
+  window.submitScore = async function() {
     const scoreData = {
       name: state.playerName || '無名韭菜',
       days: state.day,
       assets: state.assets,
-      title: calculateTitle()
+      title: calculateTitle(),
+      timestamp: Date.now()
     };
 
     try {
-      const res = await fetch('/api/leaderboard', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(scoreData)
-      });
-
-      if (res.ok) {
-        alert('🎉 成功登錄全台散戶排行榜！');
-        switchTab('leaderboard');
-      } else {
-        throw new Error('Submit failed');
-      }
+      await push(ref(db, 'leaderboard'), scoreData);
+      alert('🎉 成功登錄全台散戶排行榜！');
+      window.switchTab('leaderboard');
     } catch (error) {
-      alert('❌ 上傳失敗，請檢查網路連線或 Vercel 後台。');
+      alert('❌ 上傳失敗，請檢查網路連線。');
     }
   }
 
@@ -319,11 +378,13 @@
     if (state.assets <= 0 || state.hp <= 0) {
       stopTimer();
       const reason = state.assets <= 0 ? '違約交割破產畢業！' : '心理 HP 歸零精神崩潰！';
+      const finalTitle = calculateTitle();
       area.innerHTML = `
         <h3 class="red" style="margin-top:0;">🛑 遊戲結束：${reason}</h3>
         <p>你在台股市場中一共存活了 <b>${state.day}</b> 天！</p>
         <div style="background:#222; padding:12px; border-radius:6px; margin:10px 0;">
           <p>你的散戶代號：<b>${state.playerName}</b></p>
+          <p>獲得終極稱號：<b style="color:#ffd54f;">${finalTitle}</b></p>
           <button class="btn btn-next" onclick="submitScore()">🏆 上傳成績到全台排行榜</button>
         </div>
         <button class="btn btn-danger" onclick="resetToDayOne()">🔄 重新投胎，展開新故事 (Day 1)</button>
@@ -332,7 +393,20 @@
     }
 
     if (state.phase === 'OPEN' && state.timeLeft === 10) {
-      state.currentEnv = environments[Math.floor(Math.random() * environments.length)];
+      const rawEnv = environments[Math.floor(Math.random() * environments.length)];
+      
+      const pctValue = parseFloat((Math.random() * 4.9 + 0.1).toFixed(1));
+      const sign = rawEnv.type === 'up' ? '+' : '-';
+      
+      state.currentEnv = {
+        ...rawEnv,
+        changeRate: rawEnv.type === 'up' ? (pctValue / 100) : (-pctValue / 100),
+        change: `${sign}${pctValue}%`
+      };
+      
+      const taiexDiff = Math.round(state.taiex * state.currentEnv.changeRate);
+      state.taiex = state.taiex + taiexDiff;
+      
       state.startDayAssets = state.assets;
     }
 
@@ -347,22 +421,34 @@
         </div>
         <div class="news">📰 【Day ${state.day} - 09:00 早盤】<br>${state.currentEnv.news}</div>
         <p style="margin: 8px 0;">⚡ 請在 10 秒內做出決策：</p>
-        <button class="btn" onclick="handleChoice('CASH')">🛡️ 現股買進 (勝率 50% | +6% / -5%)</button>
-        <button class="btn" onclick="handleChoice('MARGIN')">⚡ 融資開滿 (勝率 35% | +18% / -15%)</button>
-        <button class="btn" onclick="handleChoice('DAY_TRADE')">💥 無本當沖 (勝率 20% | +45% / -40%, HP-10)</button>
+        <button class="btn" onclick="handleChoice('CASH')">🛡️ 現股買進 (勝率 45~55% | 波動 +3~8% / -2~6% | HP -1~5)</button>
+        <button class="btn" onclick="handleChoice('MARGIN')">⚡ 融資開滿 (勝率 35~45% | 波動 +10~20% / -8~16% | HP -5~10)</button>
+        <button class="btn" onclick="handleChoice('DAY_TRADE')">💥 無本當沖 (勝率 20~30% | 波動 +25~50% / -20~45% | HP -12~20)</button>
       `;
     } else if (state.phase === 'MID') {
+      if (!state.currentMidEnv) {
+        const rawMid = midEnvironments[Math.floor(Math.random() * midEnvironments.length)];
+        const midPctValue = parseFloat((Math.random() * 2.9 + 0.1).toFixed(1));
+        const midSign = rawMid.type === 'up' ? '+' : '-';
+        state.currentMidEnv = {
+          ...rawMid,
+          change: `${midSign}${midPctValue}%`
+        };
+      }
+
       startTimer(() => handleChoice('PANIC'));
+      const midEnvColorClass = state.currentMidEnv.type === 'up' ? 'red' : 'green';
+
       area.innerHTML = `
         <div class="market-info">
           <div>📈 市場環境：<b>${state.currentEnv.name}</b></div>
-          <div>午盤走勢：<span class="${envColorClass}">${state.currentEnv.type === 'up' ? '+0.8%' : '-1.8%'}</span></div>
+          <div>午盤走勢：<span class="${midEnvColorClass}">${state.currentMidEnv.change}</span></div>
         </div>
-        <div class="news">📰 【Day ${state.day} - 11:30 盤中】午盤籌碼鬆動，股價波動加劇！</div>
+        <div class="news">📰 【Day ${state.day} - 11:30 盤中】${state.currentMidEnv.name} - ${state.currentMidEnv.news}</div>
         <p style="margin: 8px 0;">⚡ 請在 10 秒內做出決策：</p>
-        <button class="btn" onclick="handleChoice('HOLD')">🛡️ 硬捏現股 (勝率 35% | +8% / -7%, HP-10)</button>
-        <button class="btn" onclick="handleChoice('TAKE_PROFIT')">🛑 認賠砍倉/落袋為安 (鎖定損益, HP+10)</button>
-        <button class="btn" onclick="handleChoice('DOUBLE_DOWN')">💥 加碼攤平 (勝率 20% | +35% / -30%, HP-15)</button>
+        <button class="btn" onclick="handleChoice('HOLD')">🛡️ 硬捏現股 (勝率 30~40% | 波動 +5~12% / -4~10% | HP -6~12)</button>
+        <button class="btn" onclick="handleChoice('TAKE_PROFIT')">🛑 認賠砍倉/落袋為安 (鎖定損益 | HP +5~15)</button>
+        <button class="btn" onclick="handleChoice('DOUBLE_DOWN')">💥 加碼攤平 (勝率 15~25% | 波動 +20~40% / -15~35% | HP -12~22)</button>
       `;
     } else if (state.phase === 'AFTER') {
       stopTimer();
@@ -389,6 +475,7 @@
         <div class="log-box">
           • 散戶代號：<b>${state.playerName}</b> (${calculateTitle()})<br>
           • 市場總結：${state.currentEnv.name} (大盤: ${state.currentEnv.change})<br>
+          • 今日大盤點數：<b>${state.taiex.toLocaleString()} 點</b><br>
           • 今日總損益：<span class="${profitColor}">${sign}$${profit.toLocaleString()} (${sign}${pct}%)</span><br>
           • 當前總資產：$${state.assets.toLocaleString()}<br>
           • 當前心理 HP：${state.hp}/100
@@ -398,39 +485,71 @@
     }
   }
 
-  function handleChoice(type) {
+  window.handleChoice = function(type) {
     stopTimer();
     let win = false;
     let rate = 0;
+    let hpCost = 0;
+
+    const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const getRandomChoice = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
     if (type === 'PANIC') {
-      alert('⚠️ 時間到！散戶陷入 Panic，系統隨機盲選【無本當沖】！');
-      type = 'DAY_TRADE';
+      if (state.phase === 'OPEN') {
+        const choices = ['CASH', 'MARGIN', 'DAY_TRADE'];
+        type = getRandomChoice(choices);
+        const choiceNames = { 'CASH': '【現股買進】', 'MARGIN': '【融資開滿】', 'DAY_TRADE': '【無本當沖】' };
+        alert(`⚠️ 時間到！早盤 Panic 腦袋一片空白，系統隨機幫你盲選：${choiceNames[type]}！`);
+      } else if (state.phase === 'MID') {
+        const choices = ['HOLD', 'TAKE_PROFIT', 'DOUBLE_DOWN'];
+        type = getRandomChoice(choices);
+        const choiceNames = { 'HOLD': '【硬捏現股】', 'TAKE_PROFIT': '【落袋為安/砍倉】', 'DOUBLE_DOWN': '【加碼攤平】' };
+        alert(`⚠️ 時間到！午盤 Panic 腦袋一片空白，系統隨機幫你盲選：${choiceNames[type]}！`);
+      }
     }
 
     const rand = Math.random();
+
     if (type === 'CASH') {
-      win = rand < 0.5;
-      rate = win ? 0.06 : -0.05;
+      const winRate = getRandomChoice([0.45, 0.50, 0.55]);
+      win = rand < winRate;
+      rate = win ? (getRandomInt(3, 8) / 100) : (-getRandomInt(2, 6) / 100);
+      hpCost = getRandomInt(1, 5);
+
     } else if (type === 'MARGIN') {
-      win = rand < 0.35;
-      rate = win ? 0.18 : -0.15;
+      const winRate = getRandomChoice([0.35, 0.40, 0.45]);
+      win = rand < winRate;
+      rate = win ? (getRandomInt(10, 20) / 100) : (-getRandomInt(8, 16) / 100);
+      hpCost = getRandomInt(5, 10);
+
     } else if (type === 'DAY_TRADE') {
-      win = rand < 0.2;
-      rate = win ? 0.45 : -0.40;
-      state.hp -= 10;
+      const winRate = getRandomChoice([0.20, 0.25, 0.30]);
+      win = rand < winRate;
+      rate = win ? (getRandomInt(25, 50) / 100) : (-getRandomInt(20, 45) / 100);
+      hpCost = getRandomInt(12, 20);
       state.dayTradeCount++;
+
     } else if (type === 'HOLD') {
-      win = rand < 0.35;
-      rate = win ? 0.08 : -0.07;
-      state.hp -= 10;
+      const winRate = getRandomChoice([0.30, 0.35, 0.40]);
+      win = rand < winRate;
+      rate = win ? (getRandomInt(5, 12) / 100) : (-getRandomInt(4, 10) / 100);
+      hpCost = getRandomInt(6, 12);
+
     } else if (type === 'TAKE_PROFIT') {
       rate = 0;
-      state.hp = Math.min(100, state.hp + 10);
+      const hpRecovery = getRandomInt(5, 15);
+      state.hp = Math.min(100, state.hp + hpRecovery);
+      hpCost = 0;
+
     } else if (type === 'DOUBLE_DOWN') {
-      win = rand < 0.2;
-      rate = win ? 0.35 : -0.30;
-      state.hp -= 15;
+      const winRate = getRandomChoice([0.15, 0.20, 0.25]);
+      win = rand < winRate;
+      rate = win ? (getRandomInt(20, 40) / 100) : (-getRandomInt(15, 35) / 100);
+      hpCost = getRandomInt(12, 22);
+    }
+
+    if (hpCost > 0) {
+      state.hp = Math.max(0, state.hp - hpCost);
     }
 
     state.assets = Math.round(state.assets * (1 + rate));
@@ -440,18 +559,20 @@
     } else if (state.phase === 'MID') {
       state.phase = 'AFTER';
     }
+
     renderPhase();
   }
 
-  function nextDay() {
+  window.nextDay = function() {
     state.day++;
     state.phase = 'OPEN';
+    state.currentMidEnv = null;
     state.timeLeft = 10;
     renderPhase();
   }
 
-  document.getElementById('btn-tab-history').addEventListener('click', () => switchTab('history'));
-  document.getElementById('btn-tab-leaderboard').addEventListener('click', () => switchTab('leaderboard'));
+  document.getElementById('btn-tab-history').addEventListener('click', () => window.switchTab('history'));
+  document.getElementById('btn-tab-leaderboard').addEventListener('click', () => window.switchTab('leaderboard'));
 
   resetToDayOne();
 </script>
