@@ -103,26 +103,7 @@
   </div>
 </div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics.js";
-  import { getDatabase, ref, push, get, query, orderByChild } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyD_Tx-yR_1K1-xibYx6pQ45ISshKyDgeCU",
-    authDomain: "zero-9be4e.firebaseapp.com",
-    databaseURL: "https://zero-9be4e-default-rtdb.firebaseio.com",
-    projectId: "zero-9be4e",
-    storageBucket: "zero-9be4e.firebasestorage.app",
-    messagingSenderId: "794711311986",
-    appId: "1:794711311986:web:3be66140611a6fb6ab24eb",
-    measurementId: "G-RWT8QXHN4M"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-  const db = getDatabase(app);
-
+<script>
   // 10 個早盤市場環境
   const environments = [
     { name: '【牛市狂歡】', type: 'up', news: '美股科技股大漲，外資強勢歸隊，台股跳空開高衝刺！' },
@@ -162,7 +143,7 @@
     "背負沉重學貸與家計，你把最後的 100 萬身家壓在台積電供應鏈上，今晚住公園還是帝寶就看這一次！"
   ];
 
-  // 畢業遊戲結束隨機稱號庫
+  // 畢業隨機稱號庫
   const gameOverTitles = [
     '【公園帝寶頂樓戶】',
     '【北車紙箱國王】',
@@ -195,7 +176,7 @@
       dailyLog: [],
       dayTradeCount: 0,
       currentTab: 'history',
-      assignedGameOverTitle: null // 畢業後隨機給予的稱號
+      assignedGameOverTitle: null
     };
   }
 
@@ -208,7 +189,6 @@
   function calculateTitle() {
     const profitRate = ((state.assets - 1000000) / 1000000) * 100;
     
-    // 遊戲畢業/死亡，給予隨機搞笑稱號
     if (state.assets <= 0 || state.hp <= 0) {
       if (!state.assignedGameOverTitle) {
         state.assignedGameOverTitle = gameOverTitles[Math.floor(Math.random() * gameOverTitles.length)];
@@ -216,7 +196,6 @@
       return state.assignedGameOverTitle;
     }
 
-    // 存活中隨機與條件稱號
     if (profitRate <= -30) return '【台南反指標】';
     if (profitRate <= -15 && state.hp < 40) return '【股市冥燈】';
     if (profitRate >= 60) return '【哲哲接班人】';
@@ -296,34 +275,33 @@
     }).reverse().join('');
   }
 
+  // ===== Vercel API: 讀取排行榜 =====
   async function renderLeaderboard() {
     const container = document.getElementById('sidebar-content');
     container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">載入全台數據中...</div>`;
 
     try {
-      const scoresRef = query(ref(db, 'leaderboard'), orderByChild('days'));
-      const snapshot = await get(scoresRef);
-      const board = [];
-      
-      snapshot.forEach((child) => {
-        board.push(child.val());
-      });
-      
-      board.reverse();
+      const res = await fetch('/api/leaderboard');
+      if (!res.ok) throw new Error('無法讀取排行榜');
 
-      if (board.length === 0) {
+      const board = await res.json();
+
+      if (!board || board.length === 0) {
         container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">全台尚無榜單記錄</div>`;
         return;
       }
 
+      board.sort((a, b) => b.days - a.days);
+
       container.innerHTML = board.map((item, idx) => `
         <div class="leaderboard-item">
-          <div><b>#${idx + 1} ${item.name}</b><br><small style="color:#aaa;">${item.title}</small></div>
-          <div style="text-align:right;"><span class="red">${item.days} 天</span><br><small>$${item.assets.toLocaleString()}</small></div>
+          <div><b>#${idx + 1} ${item.name}</b><br><small style="color:#aaa;">${item.title || '台股散戶'}</small></div>
+          <div style="text-align:right;"><span class="red">${item.days} 天</span><br><small>$${(item.assets || 0).toLocaleString()}</small></div>
         </div>
       `).join('');
     } catch (err) {
-      container.innerHTML = `<div style="color:#ff5252;text-align:center;margin-top:20px;">讀取排行榜失敗</div>`;
+      console.error(err);
+      container.innerHTML = `<div style="color:#ff5252;text-align:center;margin-top:20px;">讀取排行榜失敗，請重試</div>`;
     }
   }
 
@@ -338,6 +316,7 @@
     renderPhase();
   };
 
+  // ===== Vercel API: 上傳成績 =====
   window.submitScore = async function() {
     const scoreData = {
       name: state.playerName || '無名韭菜',
@@ -348,11 +327,19 @@
     };
 
     try {
-      await push(ref(db, 'leaderboard'), scoreData);
+      const res = await fetch('/api/leaderboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scoreData)
+      });
+
+      if (!res.ok) throw new Error('上傳失敗');
+
       alert('🎉 成功登錄全台散戶排行榜！');
       window.switchTab('leaderboard');
     } catch (error) {
-      alert('❌ 上傳失敗，請檢查網路連線。');
+      console.error(error);
+      alert('❌ 上傳失敗，請檢查 Vercel KV 連線與設定。');
     }
   }
 
