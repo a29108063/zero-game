@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>台股散戶模擬器 - 全台最真實的韭菜生存挑戰</title>
+  <meta name="description" content="體驗最刺激的台股散戶模擬器！10秒生死決策、當沖融資、隨機散戶故事，挑戰全台最強少年股神排行榜！">
+  <meta name="keywords" content="台股散戶模擬器, 股市遊戲, 散戶, 韭菜, 股票模擬器, 當沖, 排行榜">
+  
+  <style>
+    * { box-sizing: border-box; }
+    body { background-color: #121212; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, monospace; padding: 20px; margin: 0; }
+    
+    .layout-container { display: flex; gap: 20px; max-width: 1050px; margin: 0 auto; align-items: stretch; }
+    
+    .sidebar { width: 320px; flex-shrink: 0; background: #1e1e1e; border: 2px solid #333; border-radius: 8px; padding: 15px; height: 620px; display: flex; flex-direction: column; }
+    .sidebar-title { font-size: 1rem; font-weight: bold; border-bottom: 2px solid #444; padding-bottom: 8px; margin-bottom: 10px; color: #ffd54f; display: flex; justify-content: space-between; align-items: center; }
+    .tab-btn { background: #333; color: #fff; border: 1px solid #555; padding: 4px 10px; cursor: pointer; border-radius: 4px; font-size: 0.8rem; }
+    .tab-btn.active { background: #ff9800; color: #000; font-weight: bold; border-color: #ff9800; }
+    .sidebar-content { flex: 1; overflow-y: auto; padding-right: 5px; }
+    
+    .history-card { background: #282a36; border: 1px solid #44475a; border-radius: 6px; padding: 10px; margin-bottom: 8px; font-size: 0.85rem; }
+    .history-card .day-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 4px; }
+    
+    .leaderboard-item { display: flex; justify-content: space-between; background: #252526; padding: 10px; border-radius: 4px; margin-bottom: 6px; font-size: 0.85rem; border-left: 4px solid #ff9800; }
+
+    .terminal { flex: 1; border: 2px solid #333; border-radius: 8px; padding: 20px; background-color: #1e1e1e; box-shadow: 0 0 15px rgba(0,0,0,0.8); height: 620px; display: flex; flex-direction: column; }
+    
+    .app-header { border-bottom: 2px solid #444; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .app-title { margin: 0; color: #00e676; font-size: 1.3rem; font-weight: bold; letter-spacing: 1px; }
+    
+    .author-badge { font-size: 0.85rem; color: #ffd54f; font-weight: bold; background: #2a2a2a; border: 1px solid #ffd54f; padding: 2px 8px; border-radius: 4px; }
+
+    .timer { font-size: 1.4rem; color: #ff5252; font-weight: bold; text-align: center; margin-bottom: 12px; border: 1px dashed #ff5252; padding: 6px; border-radius: 4px; background: rgba(255, 82, 82, 0.05); }
+    .status-bar { display: flex; justify-content: space-between; background: #2a2a2a; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 0.9rem; }
+    .title-row { margin-bottom: 12px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+    .title-badge { background: #ff9800; color: #121212; font-weight: bold; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block; }
+    
+    .market-info { background: #282a36; border: 1px solid #44475a; padding: 10px; border-radius: 4px; margin-bottom: 12px; display: flex; justify-content: space-between; font-size: 0.9rem; }
+    .news { background: #252526; border-left: 4px solid #00e676; padding: 10px; margin-bottom: 12px; font-size: 0.9rem; line-height: 1.4; }
+    .story-box { background: #2a1b1b; border: 1px dashed #ff5252; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.5; color: #ffccbc; }
+    
+    .btn { display: block; width: 100%; padding: 11px; margin: 6px 0; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer; text-align: left; font-size: 0.9rem; transition: background 0.2s; }
+    .btn:hover { background: #444; border-color: #888; }
+    .btn-next { background: #2e7d32; text-align: center; font-weight: bold; font-size: 1.05rem; margin-top: 12px; border-color: #388e3c; }
+    .btn-next:hover { background: #388e3c; }
+    .btn-danger { background: #c62828; text-align: center; font-weight: bold; border-color: #e53935; }
+    .btn-danger:hover { background: #d32f2f; }
+    .red { color: #ff5252; font-weight: bold; }
+    .green { color: #69f0ae; font-weight: bold; }
+    .log-box { background: #111; padding: 10px; border-radius: 4px; font-size: 0.85rem; margin-top: 10px; max-height: 120px; overflow-y: auto; line-height: 1.5; }
+    input[type="text"] { width: 100%; padding: 8px; margin: 8px 0; background: #222; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 0.9rem; }
+    
+    .content-body { flex: 1; overflow-y: auto; }
+
+    @media (max-width: 768px) {
+      .layout-container { flex-direction: column-reverse; }
+      .sidebar { width: 100%; height: 300px; }
+      .terminal { height: auto; min-height: 500px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="layout-container">
+  <div class="sidebar">
+    <div class="sidebar-title">
+      <span id="sidebar-tab-title">📜 每日對帳歷史</span>
+      <div>
+        <button class="tab-btn active" id="btn-tab-history">歷史</button>
+        <button class="tab-btn" id="btn-tab-leaderboard">排行榜</button>
+      </div>
+    </div>
+    <div class="sidebar-content" id="sidebar-content"></div>
+  </div>
+
+  <div class="terminal">
+    <div class="app-header">
+      <div class="header-left">
+        <h2 class="app-title">📟 台股散戶模擬器</h2>
+      </div>
+      <div class="header-right">
+        <span class="author-badge">✍️ 作者：洪大大</span>
+      </div>
+    </div>
+
+    <div id="timer-box" class="timer" style="display:none;">⏱️ 決策倒數：<span id="timer-sec">10</span> 秒</div>
+    
+    <div class="status-bar">
+      <div>💰 總資產: $<span id="assets">1,000,000</span></div>
+      <div>🧠 心理 HP: <span id="hp">100</span>%</div>
+      <div>📅 Day <span id="day">1</span></div>
+    </div>
+    <div class="title-row">
+      <span>🏷️ 當前稱號：</span>
+      <span id="title-badge" class="title-badge">【台股新星散戶】</span>
+    </div>
+
+    <div id="content-area" class="content-body"></div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics.js";
+  import { getDatabase, ref, push, get, query, orderByChild } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD_Tx-yR_1K1-xibYx6pQ45ISshKyDgeCU",
+    authDomain: "zero-9be4e.firebaseapp.com",
+    databaseURL: "https://zero-9be4e-default-rtdb.firebaseio.com",
+    projectId: "zero-9be4e",
+    storageBucket: "zero-9be4e.firebasestorage.app",
+    messagingSenderId: "794711311986",
+    appId: "1:794711311986:web:3be66140611a6fb6ab24eb",
+    measurementId: "G-RWT8QXHN4M"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getDatabase(app);
+
+  const environments = [
+    { name: '【牛市狂歡】', change: '+1.5%', type: 'up', news: '美股科技股大漲，外資強勢歸隊，台股跳空開高衝刺！' },
+    { name: '【熊市反彈】', change: '-1.2%', type: 'down', news: '美股暴跌震盪，台股開盤重挫，散戶恐慌殺出！' },
+    { name: '【高檔震盪】', change: '+0.1%', type: 'up', news: '多空交戰劇烈，台積電狹幅平盤震盪，方向不明。' },
+    { name: '【主力洗盤】', change: '-0.8%', type: 'down', news: '早盤急拉後遭外資拋售，甩轎力道極強！' }
+  ];
+
+  // 隨機散戶背景故事庫 (100個故事隨機抽樣)
+  const storyPool = [
+    "家道中落，家裡負債累累，你被迫拿僅存的 100 萬積蓄 ALL IN 股市，希望能鹹魚翻身！",
+    "被交往五年的女友嫌棄沒出息狠甩，你決定化悲憤為力量，帶著 100 萬投身台股證明自己！",
+    "中年失業又逢房貸壓頂，身上僅剩 100 萬退休金，只能在股市裡搏一把生路。",
+    "聽信隔壁鄰居明牌買航運慘遭套牢，這次你決定自己當操盤手，把本金凹回來！",
+    "剛從大學畢業，把打工存下的 100 萬全部投入當沖，夢想成為下一個少年股神。",
+    "偶然在路上撿到一本神祕的操盤筆記，你毅然決然辭職，攜帶 100 萬資金踏入股市深淵。",
+    "背負沉重學貸與家計，你把最後的 100 萬身家壓在台積電供應鏈上，今晚住公園還是帝寶就看這一次！"
+  ];
+
+  let state = getInitialState();
+
+  function getInitialState() {
+    return {
+      day: 1,
+      assets: 1000000,
+      startDayAssets: 1000000,
+      hp: 100,
+      phase: 'INIT_STORY', // 新增初始故事階段
+      currentStory: storyPool[Math.floor(Math.random() * storyPool.length)],
+      playerName: '',
+      currentEnv: null,
+      timer: null,
+      timeLeft: 10,
+      dailyLog: [],
+      dayTradeCount: 0,
+      currentTab: 'history'
+    };
+  }
+
+  function resetToDayOne() {
+    state = getInitialState();
+    switchTab('history');
+    renderPhase();
+  }
+
+  function calculateTitle() {
+    const profitRate = ((state.assets - 1000000) / 1000000) * 100;
+    if (state.assets <= 0) return '【違約交割畢業生】';
+    if (state.hp <= 0) return '【精神崩潰阿呆】';
+    if (profitRate >= 50) return '【台股少年股神】';
+    if (profitRate >= 20) return '【波段操盤大師】';
+    if (profitRate >= 5) return '【穩健獲利韭菜】';
+    if (profitRate <= -20) return '【山頂套牢榮譽市民】';
+    if (state.dayTradeCount >= 3) return '【極限當沖賭王】';
+    if (state.day >= 10) return '【資深股市生還者】';
+    return '【台股新星散戶】';
+  }
+
+  function startTimer(onTimeout) {
+    clearInterval(state.timer);
+    state.timeLeft = 10;
+    const timerBox = document.getElementById('timer-box');
+    const timerSec = document.getElementById('timer-sec');
+    if (timerBox) timerBox.style.display = 'block';
+    if (timerSec) timerSec.innerText = state.timeLeft;
+
+    state.timer = setInterval(() => {
+      state.timeLeft--;
+      if (timerSec) timerSec.innerText = state.timeLeft;
+      if (timerSec && state.timeLeft <= 0) {
+        clearInterval(state.timer);
+        onTimeout();
+      }
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(state.timer);
+    const timerBox = document.getElementById('timer-box');
+    if (timerBox) timerBox.style.display = 'none';
+  }
+
+  function updateHUD() {
+    document.getElementById('assets').innerText = state.assets.toLocaleString();
+    document.getElementById('hp').innerText = state.hp;
+    document.getElementById('day').innerText = state.day;
+    document.getElementById('title-badge').innerText = calculateTitle();
+  }
+
+  window.switchTab = function(tab) {
+    state.currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    if (tab === 'history') {
+      document.getElementById('btn-tab-history').classList.add('active');
+      document.getElementById('sidebar-tab-title').innerText = '📜 每日對帳歷史';
+      renderHistory();
+    } else {
+      document.getElementById('btn-tab-leaderboard').classList.add('active');
+      document.getElementById('sidebar-tab-title').innerText = '🏆 全台散戶排行榜';
+      renderLeaderboard();
+    }
+  }
+
+  function renderHistory() {
+    const container = document.getElementById('sidebar-content');
+    if (state.dailyLog.length === 0) {
+      container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">尚無結算紀錄</div>`;
+      return;
+    }
+    container.innerHTML = state.dailyLog.map(item => {
+      const diffColor = item.profit >= 0 ? 'red' : 'green';
+      const sign = item.profit >= 0 ? '+' : '';
+      return `
+        <div class="history-card">
+          <div class="day-header">
+            <span>Day ${item.day} ${item.env}</span>
+            <span class="${diffColor}">${sign}$${item.profit.toLocaleString()} (${sign}${item.pct}%)</span>
+          </div>
+          <div style="color: #aaa;">期末資產：$${item.endAssets.toLocaleString()}</div>
+        </div>
+      `;
+    }).reverse().join('');
+  }
+
+  async function renderLeaderboard() {
+    const container = document.getElementById('sidebar-content');
+    container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">載入全台數據中...</div>`;
+
+    try {
+      const scoresRef = query(ref(db, 'leaderboard'), orderByChild('days'));
+      const snapshot = await get(scoresRef);
+      const board = [];
+      
+      snapshot.forEach((child) => {
+        board.push(child.val());
+      });
+      
+      board.reverse();
+
+      if (board.length === 0) {
+        container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">全台尚無榜單記錄</div>`;
+        return;
+      }
+
+      container.innerHTML = board.map((item, idx) => `
+        <div class="leaderboard-item">
+          <div><b>#${idx + 1} ${item.name}</b><br><small style="color:#aaa;">${item.title}</small></div>
+          <div style="text-align:right;"><span class="red">${item.days} 天</span><br><small>$${item.assets.toLocaleString()}</small></div>
+        </div>
+      `).join('');
+    } catch (err) {
+      container.innerHTML = `<div style="color:#ff5252;text-align:center;margin-top:20px;">讀取排行榜失敗</div>`;
+    }
+  }
+
+  window.startGameWithStory = function() {
+    const nameInput = document.getElementById('setup-name').value.trim();
+    if (!nameInput) {
+      alert('請先輸入你的散戶名稱才能進入市場！');
+      return;
+    }
+    state.playerName = nameInput;
+    state.phase = 'OPEN';
+    renderPhase();
+  };
+
+  window.submitScore = async function() {
+    const scoreData = {
+      name: state.playerName || '無名韭菜',
+      days: state.day,
+      assets: state.assets,
+      title: calculateTitle(),
+      timestamp: Date.now()
+    };
+
+    try {
+      await push(ref(db, 'leaderboard'), scoreData);
+      alert('🎉 成功登錄全台散戶排行榜！');
+      window.switchTab('leaderboard');
+    } catch (error) {
+      alert('❌ 上傳失敗，請檢查網路連線。');
+    }
+  }
+
+  function renderPhase() {
+    updateHUD();
+    const area = document.getElementById('content-area');
+
+    // 階段零：隨機散戶背景與輸入名稱
+    if (state.phase === 'INIT_STORY') {
+      stopTimer();
+      area.innerHTML = `
+        <h3 style="margin-top:0; color:#ffd54f;">📖 散戶宿命背景生成</h3>
+        <div class="story-box">
+          <b>【你的命運故事】</b><br>
+          ${state.currentStory}
+        </div>
+        <p>請輸入你的散戶代號（將記錄於排行榜）：</p>
+        <input type="text" id="setup-name" placeholder="例如：少年股神洪大大" maxlength="12" value="${state.playerName}">
+        <button class="btn btn-next" onclick="startGameWithStory()">🚀 帶著 100 萬資金，踏入台股深淵！</button>
+      `;
+      return;
+    }
+
+    if (state.assets <= 0 || state.hp <= 0) {
+      stopTimer();
+      const reason = state.assets <= 0 ? '違約交割破產畢業！' : '心理 HP 歸零精神崩潰！';
+      area.innerHTML = `
+        <h3 class="red" style="margin-top:0;">🛑 遊戲結束：${reason}</h3>
+        <p>你在台股市場中一共存活了 <b>${state.day}</b> 天！</p>
+        <div style="background:#222; padding:12px; border-radius:6px; margin:10px 0;">
+          <p>你的散戶代號：<b>${state.playerName}</b></p>
+          <button class="btn btn-next" onclick="submitScore()">🏆 上傳成績到全台排行榜</button>
+        </div>
+        <button class="btn btn-danger" onclick="resetToDayOne()">🔄 重新投胎，展開新故事 (Day 1)</button>
+      `;
+      return;
+    }
+
+    if (state.phase === 'OPEN' && state.timeLeft === 10) {
+      state.currentEnv = environments[Math.floor(Math.random() * environments.length)];
+      state.startDayAssets = state.assets;
+    }
+
+    const envColorClass = state.currentEnv.type === 'up' ? 'red' : 'green';
+
+    if (state.phase === 'OPEN') {
+      startTimer(() => handleChoice('PANIC'));
+      area.innerHTML = `
+        <div class="market-info">
+          <div>📈 市場環境：<b>${state.currentEnv.name}</b></div>
+          <div>今日大盤：<span class="${envColorClass}">${state.currentEnv.change}</span></div>
+        </div>
+        <div class="news">📰 【Day ${state.day} - 09:00 早盤】<br>${state.currentEnv.news}</div>
+        <p style="margin: 8px 0;">⚡ 請在 10 秒內做出決策：</p>
+        <button class="btn" onclick="handleChoice('CASH')">🛡️ 現股買進 (勝率 50% | +6% / -5%)</button>
+        <button class="btn" onclick="handleChoice('MARGIN')">⚡ 融資開滿 (勝率 35% | +18% / -15%)</button>
+        <button class="btn" onclick="handleChoice('DAY_TRADE')">💥 無本當沖 (勝率 20% | +45% / -40%, HP-10)</button>
+      `;
+    } else if (state.phase === 'MID') {
+      startTimer(() => handleChoice('PANIC'));
+      area.innerHTML = `
+        <div class="market-info">
+          <div>📈 市場環境：<b>${state.currentEnv.name}</b></div>
+          <div>午盤走勢：<span class="${envColorClass}">${state.currentEnv.type === 'up' ? '+0.8%' : '-1.8%'}</span></div>
+        </div>
+        <div class="news">📰 【Day ${state.day} - 11:30 盤中】午盤籌碼鬆動，股價波動加劇！</div>
+        <p style="margin: 8px 0;">⚡ 請在 10 秒內做出決策：</p>
+        <button class="btn" onclick="handleChoice('HOLD')">🛡️ 硬捏現股 (勝率 35% | +8% / -7%, HP-10)</button>
+        <button class="btn" onclick="handleChoice('TAKE_PROFIT')">🛑 認賠砍倉/落袋為安 (鎖定損益, HP+10)</button>
+        <button class="btn" onclick="handleChoice('DOUBLE_DOWN')">💥 加碼攤平 (勝率 20% | +35% / -30%, HP-15)</button>
+      `;
+    } else if (state.phase === 'AFTER') {
+      stopTimer();
+      const profit = state.assets - state.startDayAssets;
+      const pct = ((profit / state.startDayAssets) * 100).toFixed(1);
+      
+      if (!state.dailyLog.find(l => l.day === state.day)) {
+        state.dailyLog.push({
+          day: state.day,
+          env: state.currentEnv.name,
+          profit: profit,
+          pct: pct,
+          endAssets: state.assets
+        });
+        if (state.currentTab === 'history') renderHistory();
+      }
+
+      const profitColor = profit >= 0 ? 'red' : 'green';
+      const sign = profit >= 0 ? '+' : '';
+
+      area.innerHTML = `
+        <h3 style="margin-top:0;">📊 【Day ${state.day} - 13:30 盤後結算報告】</h3>
+        <p style="margin:5px 0;">今日市場已收盤。</p>
+        <div class="log-box">
+          • 散戶代號：<b>${state.playerName}</b> (${calculateTitle()})<br>
+          • 市場總結：${state.currentEnv.name} (大盤: ${state.currentEnv.change})<br>
+          • 今日總損益：<span class="${profitColor}">${sign}$${profit.toLocaleString()} (${sign}${pct}%)</span><br>
+          • 當前總資產：$${state.assets.toLocaleString()}<br>
+          • 當前心理 HP：${state.hp}/100
+        </div>
+        <button class="btn btn-next" onclick="nextDay()">🛎️ 進入 Day ${state.day + 1} 開盤 (09:00)</button>
+      `;
+    }
+  }
+
+  window.handleChoice = function(type) {
+    stopTimer();
+    let win = false;
+    let rate = 0;
+
+    if (type === 'PANIC') {
+      alert('⚠️ 時間到！散戶陷入 Panic，系統隨機盲選【無本當沖】！');
+      type = 'DAY_TRADE';
+    }
+
+    const rand = Math.random();
+    if (type === 'CASH') {
+      win = rand < 0.5;
+      rate = win ? 0.06 : -0.05;
+    } else if (type === 'MARGIN') {
+      win = rand < 0.35;
+      rate = win ? 0.18 : -0.15;
+    } else if (type === 'DAY_TRADE') {
+      win = rand < 0.2;
+      rate = win ? 0.45 : -0.40;
+      state.hp -= 10;
+      state.dayTradeCount++;
+    } else if (type === 'HOLD') {
+      win = rand < 0.35;
+      rate = win ? 0.08 : -0.07;
+      state.hp -= 10;
+    } else if (type === 'TAKE_PROFIT') {
+      rate = 0;
+      state.hp = Math.min(100, state.hp + 10);
+    } else if (type === 'DOUBLE_DOWN') {
+      win = rand < 0.2;
+      rate = win ? 0.35 : -0.30;
+      state.hp -= 15;
+    }
+
+    state.assets = Math.round(state.assets * (1 + rate));
+
+    if (state.phase === 'OPEN') {
+      state.phase = 'MID';
+    } else if (state.phase === 'MID') {
+      state.phase = 'AFTER';
+    }
+    renderPhase();
+  }
+
+  window.nextDay = function() {
+    state.day++;
+    state.phase = 'OPEN';
+    state.timeLeft = 10;
+    renderPhase();
+  }
+
+  document.getElementById('btn-tab-history').addEventListener('click', () => window.switchTab('history'));
+  document.getElementById('btn-tab-leaderboard').addEventListener('click', () => window.switchTab('leaderboard'));
+
+  resetToDayOne();
+</script>
+
+</body>
+</html>
