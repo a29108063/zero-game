@@ -102,26 +102,7 @@
   </div>
 </div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics.js";
-  import { getDatabase, ref, push, get, query, orderByChild } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-database.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyD_Tx-yR_1K1-xibYx6pQ45ISshKyDgeCU",
-    authDomain: "zero-9be4e.firebaseapp.com",
-    databaseURL: "https://zero-9be4e-default-rtdb.firebaseio.com",
-    projectId: "zero-9be4e",
-    storageBucket: "zero-9be4e.firebasestorage.app",
-    messagingSenderId: "794711311986",
-    appId: "1:794711311986:web:3be66140611a6fb6ab24eb",
-    measurementId: "G-RWT8QXHN4M"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-  const db = getDatabase(app);
-
+<script>
   const environments = [
     { name: '【牛市狂歡】', change: '+1.5%', type: 'up', news: '美股科技股大漲，外資強勢歸隊，台股跳空開高衝刺！' },
     { name: '【熊市反彈】', change: '-1.2%', type: 'down', news: '美股暴跌震盪，台股開盤重挫，散戶恐慌殺出！' },
@@ -129,7 +110,6 @@
     { name: '【主力洗盤】', change: '-0.8%', type: 'down', news: '早盤急拉後遭外資拋售，甩轎力道極強！' }
   ];
 
-  // 隨機散戶背景故事庫 (100個故事隨機抽樣)
   const storyPool = [
     "家道中落，家裡負債累累，你被迫拿僅存的 100 萬積蓄 ALL IN 股市，希望能鹹魚翻身！",
     "被交往五年的女友嫌棄沒出息狠甩，你決定化悲憤為力量，帶著 100 萬投身台股證明自己！",
@@ -148,7 +128,7 @@
       assets: 1000000,
       startDayAssets: 1000000,
       hp: 100,
-      phase: 'INIT_STORY', // 新增初始故事階段
+      phase: 'INIT_STORY',
       currentStory: storyPool[Math.floor(Math.random() * storyPool.length)],
       playerName: '',
       currentEnv: null,
@@ -210,7 +190,7 @@
     document.getElementById('title-badge').innerText = calculateTitle();
   }
 
-  window.switchTab = function(tab) {
+  function switchTab(tab) {
     state.currentTab = tab;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     if (tab === 'history') {
@@ -245,38 +225,41 @@
     }).reverse().join('');
   }
 
+  // 改為呼叫 Vercel 後台 API Routes 讀取排行榜
   async function renderLeaderboard() {
     const container = document.getElementById('sidebar-content');
-    container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">載入全台數據中...</div>`;
+    container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">📡 載入全台少年股神數據中...</div>`;
 
     try {
-      const scoresRef = query(ref(db, 'leaderboard'), orderByChild('days'));
-      const snapshot = await get(scoresRef);
-      const board = [];
+      const res = await fetch('/api/leaderboard');
+      if (!res.ok) throw new Error('API request failed');
       
-      snapshot.forEach((child) => {
-        board.push(child.val());
-      });
-      
-      board.reverse();
+      const board = await res.json();
 
-      if (board.length === 0) {
-        container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">全台尚無榜單記錄</div>`;
+      if (!board || board.length === 0) {
+        container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">全台尚無榜單記錄，快衝第一名！</div>`;
         return;
       }
 
       container.innerHTML = board.map((item, idx) => `
         <div class="leaderboard-item">
-          <div><b>#${idx + 1} ${item.name}</b><br><small style="color:#aaa;">${item.title}</small></div>
-          <div style="text-align:right;"><span class="red">${item.days} 天</span><br><small>$${item.assets.toLocaleString()}</small></div>
+          <div>
+            <b>#${idx + 1} ${item.name}</b><br>
+            <small style="color:#aaa;">${item.title || '【台股散戶】'}</small>
+          </div>
+          <div style="text-align:right;">
+            <span class="red">存活 ${item.days} 天</span><br>
+            <small>$${(item.assets || 0).toLocaleString()}</small>
+          </div>
         </div>
       `).join('');
     } catch (err) {
-      container.innerHTML = `<div style="color:#ff5252;text-align:center;margin-top:20px;">讀取排行榜失敗</div>`;
+      console.error(err);
+      container.innerHTML = `<div style="color:#ff5252;text-align:center;margin-top:20px;">❌ 讀取排行榜失敗<br><small style="color:#aaa;">請確認 Vercel API /api/leaderboard 正常運行</small></div>`;
     }
   }
 
-  window.startGameWithStory = function() {
+  function startGameWithStory() {
     const nameInput = document.getElementById('setup-name').value.trim();
     if (!nameInput) {
       alert('請先輸入你的散戶名稱才能進入市場！');
@@ -285,23 +268,32 @@
     state.playerName = nameInput;
     state.phase = 'OPEN';
     renderPhase();
-  };
+  }
 
-  window.submitScore = async function() {
+  // 改為呼叫 Vercel 後台 API Routes 上傳成績
+  async function submitScore() {
     const scoreData = {
       name: state.playerName || '無名韭菜',
       days: state.day,
       assets: state.assets,
-      title: calculateTitle(),
-      timestamp: Date.now()
+      title: calculateTitle()
     };
 
     try {
-      await push(ref(db, 'leaderboard'), scoreData);
-      alert('🎉 成功登錄全台散戶排行榜！');
-      window.switchTab('leaderboard');
+      const res = await fetch('/api/leaderboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(scoreData)
+      });
+
+      if (res.ok) {
+        alert('🎉 成功登錄全台散戶排行榜！');
+        switchTab('leaderboard');
+      } else {
+        throw new Error('Submit failed');
+      }
     } catch (error) {
-      alert('❌ 上傳失敗，請檢查網路連線。');
+      alert('❌ 上傳失敗，請檢查網路連線或 Vercel 後台。');
     }
   }
 
@@ -309,7 +301,6 @@
     updateHUD();
     const area = document.getElementById('content-area');
 
-    // 階段零：隨機散戶背景與輸入名稱
     if (state.phase === 'INIT_STORY') {
       stopTimer();
       area.innerHTML = `
@@ -407,7 +398,7 @@
     }
   }
 
-  window.handleChoice = function(type) {
+  function handleChoice(type) {
     stopTimer();
     let win = false;
     let rate = 0;
@@ -452,15 +443,15 @@
     renderPhase();
   }
 
-  window.nextDay = function() {
+  function nextDay() {
     state.day++;
     state.phase = 'OPEN';
     state.timeLeft = 10;
     renderPhase();
   }
 
-  document.getElementById('btn-tab-history').addEventListener('click', () => window.switchTab('history'));
-  document.getElementById('btn-tab-leaderboard').addEventListener('click', () => window.switchTab('leaderboard'));
+  document.getElementById('btn-tab-history').addEventListener('click', () => switchTab('history'));
+  document.getElementById('btn-tab-leaderboard').addEventListener('click', () => switchTab('leaderboard'));
 
   resetToDayOne();
 </script>
