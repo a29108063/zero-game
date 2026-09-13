@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>台股散戶模擬器 - 全台最真實的韭菜生存挑戰</title>
-  <meta name="description" content="體驗最刺激的台股散戶模擬器！10秒生死決策、當沖融資、隨機散戶故事，挑戰全台最強少年股神排行榜！">
-  <meta name="keywords" content="台股散戶模擬器, 股市遊戲, 散戶, 韭菜, 股票模擬器, 當沖, 排行榜">
+  <meta name="description" content="體驗最刺激的台股散戶模擬器！10秒生死決策、當沖融資、持股股利系統、隨機散戶故事！">
   
   <style>
     * { box-sizing: border-box; }
@@ -41,8 +40,9 @@
     .market-info { background: #282a36; border: 1px solid #44475a; padding: 10px; border-radius: 4px; margin-bottom: 12px; display: flex; justify-content: space-between; font-size: 0.9rem; }
     .news { background: #252526; border-left: 4px solid #00e676; padding: 10px; margin-bottom: 12px; font-size: 0.9rem; line-height: 1.4; }
     .story-box { background: #2a1b1b; border: 1px dashed #ff5252; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.5; color: #ffccbc; }
+    .dividend-box { background: #1b2a1b; border: 1px dashed #00e676; padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; color: #a5d6a7; }
     
-    .btn { display: block; width: 100%; padding: 11px; margin: 6px 0; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer; text-align: left; font-size: 0.88rem; transition: background 0.2s; }
+    .btn { display: block; width: 100%; padding: 11px; margin: 6px 0; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer; text-align: left; font-size: 0.88rem; transition: background 0.2s; line-height: 1.4; }
     .btn:hover { background: #444; border-color: #888; }
     .btn-next { background: #2e7d32; text-align: center; font-weight: bold; font-size: 1.05rem; margin-top: 12px; border-color: #388e3c; }
     .btn-next:hover { background: #388e3c; }
@@ -50,7 +50,7 @@
     .btn-danger:hover { background: #d32f2f; }
     .red { color: #ff5252; font-weight: bold; }
     .green { color: #69f0ae; font-weight: bold; }
-    .log-box { background: #111; padding: 10px; border-radius: 4px; font-size: 0.85rem; margin-top: 10px; max-height: 160px; overflow-y: auto; line-height: 1.6; }
+    .log-box { background: #111; padding: 10px; border-radius: 4px; font-size: 0.85rem; margin-top: 10px; max-height: 150px; overflow-y: auto; line-height: 1.6; }
     input[type="text"] { width: 100%; padding: 8px; margin: 8px 0; background: #222; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 0.9rem; }
     
     .content-body { flex: 1; overflow-y: auto; }
@@ -90,8 +90,9 @@
     
     <div class="status-bar">
       <div>💰 總資產: $<span id="assets">1,000,000</span></div>
-      <div>🧠 心理 HP: <span id="hp">100</span>%</div>
-      <div>📊 加權指數: <span id="taiex">40,000</span> 點</div>
+      <div>📈 加權指數: <span id="taiex-hud">40,000</span></div>
+      <div>📦 持股: <span id="shares">0</span> 股</div>
+      <div>🧠 HP: <span id="hp">100</span>%</div>
       <div>📅 Day <span id="day">1</span></div>
     </div>
     <div class="title-row">
@@ -169,7 +170,6 @@
     const roll = Math.random();
     let name = "", news = "";
 
-    // 權重調整：60% 基本盤, 20% 歷史重演, 20% 突發新聞
     if (roll < 0.60) {
       const ev = getRandomChoice(environments);
       name = ev.name; news = ev.news;
@@ -229,6 +229,7 @@
       day: 1,
       assets: 1000000,
       startDayAssets: 1000000,
+      shares: 0,
       hp: 100,
       taiex: 40000,
       startDayTaiex: 40000,
@@ -243,7 +244,11 @@
       dayTradeCount: 0,
       currentTab: 'history',
       assignedGameOverTitle: null,
-      lastHpLog: ''
+      lastHpLog: '',
+      lastFeeCost: 0,
+      // 股利下次觸發天數改為 12 到 28 天之間的隨機亂數，避免每次都在第12天固定觸發
+      nextDividendDay: Math.floor(Math.random() * 17) + 12,
+      lastDividendInfo: null
     };
   }
 
@@ -301,10 +306,16 @@
 
   function updateHUD() {
     document.getElementById('assets').innerText = state.assets.toLocaleString();
+    document.getElementById('shares').innerText = state.shares.toLocaleString();
     document.getElementById('hp').innerText = state.hp.toFixed(1);
-    document.getElementById('taiex').innerText = state.taiex.toLocaleString();
     document.getElementById('day').innerText = state.day;
     document.getElementById('title-badge').innerText = calculateTitle();
+
+    const taiexHud = document.getElementById('taiex-hud');
+    const taiexDiff = state.taiex - 40000;
+    const taiexSign = taiexDiff >= 0 ? '+' : '';
+    const taiexColor = taiexDiff >= 0 ? 'red' : 'green';
+    taiexHud.innerHTML = `<span class="${taiexColor}">${state.taiex.toLocaleString()} (${taiexSign}${taiexDiff})</span>`;
   }
 
   window.switchTab = function(tab) {
@@ -336,7 +347,10 @@
             <span>Day ${item.day} ${item.env}</span>
             <span class="${diffColor}">${sign}$${item.profit.toLocaleString()} (${sign}${item.pct}%)</span>
           </div>
-          <div style="color: #aaa;">大盤收盤：${item.taiexEnd.toLocaleString()} 點 (${item.taiexPct})</div>
+          <div style="color: #aaa;">大盤收盤：${item.taiexEnd.toLocaleString()} (${item.taiexPct})</div>
+          <div style="color: #aaa;">剩餘持股：${item.shares.toLocaleString()} 股</div>
+          <div style="color: #aaa;">手續費+證交稅：$${(item.fee || 0).toLocaleString()}</div>
+          ${item.dividend ? `<div style="color: #69f0ae;">🎁 股利入帳：+$${item.dividend.toLocaleString()}</div>` : ''}
           <div style="color: #aaa;">期末資產：$${item.endAssets.toLocaleString()}</div>
         </div>
       `;
@@ -375,7 +389,7 @@
   window.startGameWithStory = function() {
     const nameInput = document.getElementById('setup-name').value.trim();
     if (!nameInput) {
-      alert('請先輸入你的散戶名稱才能進入市場！');
+      alert('請先輸入你的散戶代號才能進入市場！');
       return;
     }
     state.playerName = nameInput;
@@ -416,6 +430,8 @@
       const taiexDiff = Math.round(state.taiex * state.currentEnv.changeRate);
       state.taiex = state.taiex + taiexDiff;
       state.startDayAssets = state.assets;
+      state.lastFeeCost = 0;
+      state.lastDividendInfo = null;
     }
 
     if (state.phase === 'MID' && !state.currentMidEnv) {
@@ -471,9 +487,9 @@
         </div>
         <div class="news">📰 【Day ${state.day} - 09:00 早盤】<br>${state.currentEnv.news}</div>
         <p style="margin: 8px 0;">⚡ 請在 10 秒內做出決策：</p>
-        <button class="btn" onclick="handleChoice('CASH')">🛡️ 現股買進 (勝率 45~55% | 波動 +3~8% / -2~6%)</button>
-        <button class="btn" onclick="handleChoice('MARGIN')">⚡ 融資開滿 (勝率 35~45% | 波動 +10~20% / -8~16%)</button>
-        <button class="btn" onclick="handleChoice('DAY_TRADE')">💥 無本當沖 (勝率 20~30% | 波動 +25~50% / -20~45%)</button>
+        <button class="btn" onclick="handleChoice('CASH')">🛡️ 現股買進<br><small style="color:#bbb;">勝率 45~55% | 波動 +3~8% / -2~6% | 稅費 0.44% | 自動換算持股</small></button>
+        <button class="btn" onclick="handleChoice('MARGIN')">⚡ 融資開滿<br><small style="color:#bbb;">勝率 35~45% | 波動 +10~20% / -8~16% | 稅費+利息 0.60% | 槓桿放大持股</small></button>
+        <button class="btn" onclick="handleChoice('DAY_TRADE')">💥 無本當沖<br><small style="color:#bbb;">勝率 20~30% | 波動 +25~50% / -20~45% | 當沖降稅 0.29% | 不留倉</small></button>
       `;
     } else if (state.phase === 'MID') {
       startTimer(() => handleChoice('PANIC'));
@@ -486,9 +502,9 @@
         </div>
         <div class="news">📰 【Day ${state.day} - 11:30 盤中】${state.currentMidEnv.name} - ${state.currentMidEnv.news}</div>
         <p style="margin: 8px 0;">⚡ 請在 10 秒內做出決策：</p>
-        <button class="btn" onclick="handleChoice('HOLD')">🛡️ 硬捏現股 (勝率 30~40% | 波動 +5~12% / -4~10%)</button>
-        <button class="btn" onclick="handleChoice('TAKE_PROFIT')">🛑 認賠砍倉/落袋為安 (鎖定損益)</button>
-        <button class="btn" onclick="handleChoice('DOUBLE_DOWN')">💥 加碼攤平 (勝率 15~25% | 波動 +20~40% / -15~35%)</button>
+        <button class="btn" onclick="handleChoice('HOLD')">🛡️ 硬捏現股 (現有持股：${state.shares.toLocaleString()} 股)<br><small style="color:#bbb;">勝率 30~40% | 波動 +5~12% / -4~10% | 無額外稅費</small></button>
+        <button class="btn" onclick="handleChoice('TAKE_PROFIT')">🛑 認賠砍倉 / 部分停損 (隨機砍掉 30%~80% 持股)<br><small style="color:#bbb;">勝率 100% | 保留部分部位繼續凹單</small></button>
+        <button class="btn" onclick="handleChoice('DOUBLE_DOWN')">💥 加碼攤平 (持股加倍)<br><small style="color:#bbb;">勝率 15~25% | 波動 +20~40% / -15~35% | 二次稅費 0.44%</small></button>
       `;
     } else if (state.phase === 'AFTER') {
       stopTimer();
@@ -504,12 +520,21 @@
 
       area.innerHTML = `
         <h3 style="margin-top:0;">📊 【Day ${state.day} - 13:30 盤後收盤結算】</h3>
-        <p style="margin:5px 0;">今日股市已收盤，大盤、帳面損益與心理 HP 已全部結算。</p>
+        <p style="margin:5px 0;">今日股市已收盤，大盤、持股與損益已全部結算。</p>
+        ${state.lastDividendInfo ? `
+          <div class="dividend-box">
+            <b>🎁 【隨機股利發放日觸發！】</b><br>
+            持有股數：<b>${state.lastDividendInfo.shares.toLocaleString()} 股</b> | 每股發放：<b>$${state.lastDividendInfo.perShare} 元</b><br>
+            💰 <b>總共領到現金股利：+$${state.lastDividendInfo.totalDividend.toLocaleString()} 元！</b>
+          </div>
+        ` : ''}
         <div class="log-box">
           • 散戶代號：<b>${state.playerName}</b> (${calculateTitle()})<br>
           • 今日市場事件：${state.currentEnv.name}<br>
           • 📊 <b>加權指數收盤：</b><b>${state.taiex.toLocaleString()} 點</b> (<span class="${taiexColor}">${taiexSign}${taiexDiffTotal} 點 / ${taiexSign}${taiexPctTotal}%</span>)<br>
-          • 💰 <b>今日個人總損益：</b><span class="${profitColor}">${sign}$${profit.toLocaleString()} (${sign}${pct}%)</span><br>
+          • 📦 <b>當前持有股數：</b><b>${state.shares.toLocaleString()} 股</b><br>
+          • 💸 <b>今日交易手續費+證交稅：</b><span style="color:#ffcc80;">$${state.lastFeeCost.toLocaleString()}</span><br>
+          • 💰 <b>今日個人總損益 (含稅費)：</b><span class="${profitColor}">${sign}$${profit.toLocaleString()} (${sign}${pct}%)</span><br>
           • 💡 <b>HP 結算事件：</b><span style="color:#ffd54f;">${state.lastHpLog}</span><br>
           • 結算後總資產：<b>$${state.assets.toLocaleString()}</b><br>
           • 結算後心理 HP：<b>${state.hp.toFixed(1)}%</b>
@@ -523,6 +548,7 @@
     stopTimer();
     let win = false;
     let rate = 0;
+    let feeRate = 0;
 
     const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
@@ -535,51 +561,85 @@
       } else if (state.phase === 'MID') {
         const choices = ['HOLD', 'TAKE_PROFIT', 'DOUBLE_DOWN'];
         type = getRandomChoice(choices);
-        const choiceNames = { 'HOLD': '【硬捏現股】', 'TAKE_PROFIT': '【落袋為安/砍倉】', 'DOUBLE_DOWN': '【加碼攤平】' };
+        const choiceNames = { 'HOLD': '【硬捏現股】', 'TAKE_PROFIT': '【部分砍倉】', 'DOUBLE_DOWN': '【加碼攤平】' };
         alert(`⚠️ 時間到！午盤 Panic 腦袋一片空白，系統隨機幫你盲選：${choiceNames[type]}！`);
       }
     }
 
     const rand = Math.random();
+    const simulatedStockPrice = getRandomInt(50, 150);
 
     if (type === 'CASH') {
+      feeRate = 0.004425; 
       const winRate = getRandomChoice([0.45, 0.50, 0.55]);
       win = rand < winRate;
       rate = win ? (getRandomInt(3, 8) / 100) : (-getRandomInt(2, 6) / 100);
+      state.shares = Math.floor(state.assets / simulatedStockPrice);
 
     } else if (type === 'MARGIN') {
+      feeRate = 0.006000; 
       const winRate = getRandomChoice([0.35, 0.40, 0.45]);
       win = rand < winRate;
       rate = win ? (getRandomInt(10, 20) / 100) : (-getRandomInt(8, 16) / 100);
+      state.shares = Math.floor((state.assets * 2) / simulatedStockPrice);
 
     } else if (type === 'DAY_TRADE') {
+      feeRate = 0.002925; 
       const winRate = getRandomChoice([0.20, 0.25, 0.30]);
       win = rand < winRate;
       rate = win ? (getRandomInt(25, 50) / 100) : (-getRandomInt(20, 45) / 100);
       state.dayTradeCount++;
+      state.shares = 0;
 
     } else if (type === 'HOLD') {
+      feeRate = 0; 
       const winRate = getRandomChoice([0.30, 0.35, 0.40]);
       win = rand < winRate;
       rate = win ? (getRandomInt(5, 12) / 100) : (-getRandomInt(4, 10) / 100);
 
     } else if (type === 'TAKE_PROFIT') {
+      feeRate = 0;
       rate = 0;
+      const sellRatio = (getRandomInt(30, 80) / 100);
+      const remainingShares = Math.floor(state.shares * (1 - sellRatio));
+      state.shares = remainingShares;
 
     } else if (type === 'DOUBLE_DOWN') {
+      feeRate = 0.004425; 
       const winRate = getRandomChoice([0.15, 0.20, 0.25]);
       win = rand < winRate;
       rate = win ? (getRandomInt(20, 40) / 100) : (-getRandomInt(15, 35) / 100);
+      state.shares *= 2;
     }
 
-    state.assets = Math.round(state.assets * (1 + rate));
+    const currentFeeCost = Math.round(state.assets * feeRate);
+    state.lastFeeCost += currentFeeCost;
+
+    const netRate = rate - feeRate;
+    state.assets = Math.round(state.assets * (1 + netRate));
 
     if (state.phase === 'OPEN') {
       state.phase = 'MID';
     } else if (state.phase === 'MID') {
+      
+      let totalDividend = 0;
+      if (state.day >= state.nextDividendDay && state.shares > 0) {
+        const perShareDividend = (Math.random() * 3 + 0.5).toFixed(2);
+        totalDividend = Math.round(state.shares * perShareDividend);
+        state.assets += totalDividend;
+        
+        state.lastDividendInfo = {
+          shares: state.shares,
+          perShare: perShareDividend,
+          totalDividend: totalDividend
+        };
+
+        // 下一次股利觸發間隔拉大為 8 到 20 天隨機
+        state.nextDividendDay = state.day + getRandomInt(8, 20);
+      }
+
       const profit = state.assets - state.startDayAssets;
       const pct = ((profit / state.startDayAssets) * 100).toFixed(1);
-      
       const absPnlPct = Math.abs(profit / state.startDayAssets) * 100;
       
       if (absPnlPct === 0) {
@@ -600,16 +660,16 @@
         if (isPositiveEffect) {
           state.hp = Math.min(100, state.hp + finalHpDeltaPct);
           if (profit < 0) {
-            state.lastHpLog = `【精神勝利】今日雖虧損 ${Math.abs(pct)}%，但你堅信沒賣就不算虧，發揮阿Q精神！HP 回復 +${hpDeltaDisplay}%！`;
+            state.lastHpLog = `【精神勝利】今日虧損 ${Math.abs(pct)}%，但堅信沒賣就不算賠！HP 回復 +${hpDeltaDisplay}%！`;
           } else {
-            state.lastHpLog = `【利多大補】今日賺取 ${pct}%，口袋滿滿讓你身心舒暢！HP 大幅回復 +${hpDeltaDisplay}%！`;
+            state.lastHpLog = `【利多大補】今日淨賺 ${pct}%，口袋滿幫！HP 大幅回復 +${hpDeltaDisplay}%！`;
           }
         } else {
           state.hp = Math.max(0, state.hp - finalHpDeltaPct);
           if (profit < 0) {
-            state.lastHpLog = `【韭菜慘叫】今日虧損 ${Math.abs(pct)}%，看著帳面出血讓你心臟受不了！HP 扣除 -${hpDeltaDisplay}%！`;
+            state.lastHpLog = `【韭菜慘叫】今日虧損 ${Math.abs(pct)}%（含稅費 $${state.lastFeeCost.toLocaleString()}），心臟受不了！HP 扣除 -${hpDeltaDisplay}%！`;
           } else {
-            state.lastHpLog = `【賣早心痛】今日雖獲利 ${pct}%，但想到隔壁老王賺更多、自己賣早了！HP 痛苦扣除 -${hpDeltaDisplay}%！`;
+            state.lastHpLog = `【賣早心痛】今日雖獲利 ${pct}%，但想到隔壁老王賺更多！HP 痛苦扣除 -${hpDeltaDisplay}%！`;
           }
         }
       }
@@ -623,6 +683,9 @@
         env: state.currentEnv.name,
         profit: profit,
         pct: pct,
+        fee: state.lastFeeCost,
+        shares: state.shares,
+        dividend: totalDividend > 0 ? totalDividend : null,
         endAssets: state.assets,
         taiexEnd: state.taiex,
         taiexPct: `${taiexSign}${taiexPctTotal}%`
