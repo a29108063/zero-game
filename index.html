@@ -166,6 +166,7 @@
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
+  // 早盤漲跌幅限制：0.1% ~ 5.0%
   function generateDynamicEnvironment() {
     const roll = Math.random();
     let name = "", news = "";
@@ -184,7 +185,7 @@
     }
 
     const isUp = Math.random() < 0.5;
-    const pctValue = parseFloat((Math.random() * 4.9 + 0.1).toFixed(1));
+    const pctValue = parseFloat((Math.random() * 4.9 + 0.1).toFixed(1)); // 0.1% ~ 5.0%
     const sign = isUp ? '+' : '-';
 
     return {
@@ -196,6 +197,7 @@
     };
   }
 
+  // 午盤漲跌幅限制：0.1% ~ 5.0%
   function generateDynamicMidEnvironment() {
     const isClassic = Math.random() < 0.5;
     let name = "", news = "";
@@ -210,7 +212,7 @@
     }
 
     const isUp = Math.random() < 0.5;
-    const pctValue = parseFloat((Math.random() * 2.9 + 0.1).toFixed(1));
+    const pctValue = parseFloat((Math.random() * 4.9 + 0.1).toFixed(1)); // 0.1% ~ 5.0%
     const sign = isUp ? '+' : '-';
 
     return {
@@ -233,6 +235,7 @@
       hp: 100,
       taiex: 40000,
       startDayTaiex: 40000,
+      openTaiexOffset: 0,
       phase: 'INIT_STORY',
       currentStory: getRandomChoice(storyPool),
       playerName: '',
@@ -311,7 +314,6 @@
     document.getElementById('title-badge').innerText = calculateTitle();
 
     const taiexHud = document.getElementById('taiex-hud');
-    // 嚴格比對當天開盤基準點 (startDayTaiex)，計算當日即時漲跌
     const taiexDiff = state.taiex - state.startDayTaiex;
     const taiexSign = taiexDiff >= 0 ? '+' : '';
     const taiexColor = taiexDiff >= 0 ? 'red' : 'green';
@@ -426,9 +428,10 @@
   function renderPhase() {
     if (state.phase === 'OPEN' && state.timeLeft === 10) {
       state.currentEnv = generateDynamicEnvironment();
-      state.startDayTaiex = state.taiex; // 記錄當天開盤時的基準點
-      const taiexDiff = Math.round(state.taiex * state.currentEnv.changeRate);
-      state.taiex = state.taiex + taiexDiff;
+      const openDiff = Math.round(state.startDayTaiex * state.currentEnv.changeRate);
+      state.openTaiexOffset = openDiff;
+      state.taiex = state.startDayTaiex + state.openTaiexOffset;
+      
       state.startDayAssets = state.assets;
       state.lastFeeCost = 0;
       state.lastDividendInfo = null;
@@ -436,8 +439,8 @@
 
     if (state.phase === 'MID' && !state.currentMidEnv) {
       state.currentMidEnv = generateDynamicMidEnvironment();
-      const midDiff = Math.round(state.taiex * state.currentMidEnv.changeRate);
-      state.taiex = state.taiex + midDiff;
+      const midDiff = Math.round(state.startDayTaiex * state.currentMidEnv.changeRate);
+      state.taiex = state.startDayTaiex + state.openTaiexOffset + midDiff;
     }
 
     updateHUD();
@@ -700,6 +703,8 @@
 
   window.nextDay = function() {
     state.day++;
+    state.startDayTaiex = state.taiex;
+    state.openTaiexOffset = 0;
     state.phase = 'OPEN';
     state.currentMidEnv = null;
     state.timeLeft = 10;
