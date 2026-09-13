@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>台股散戶模擬器 - 全台最真實的韭菜生存挑戰</title>
-  <meta name="description" content="體驗最刺激的台股散戶模擬器！10秒生死決策、當沖融資、持股股利系統、隨機散戶故事！">
+  <meta name="description" content="體驗最刺激的台股散戶模擬器！生死決策、當沖融資、盤後戰術擬定、隨機散戶故事！">
   
   <style>
     * { box-sizing: border-box; }
@@ -12,7 +12,7 @@
     
     .layout-container { display: flex; gap: 20px; max-width: 1050px; margin: 0 auto; align-items: stretch; }
     
-    .sidebar { width: 320px; flex-shrink: 0; background: #1e1e1e; border: 2px solid #333; border-radius: 8px; padding: 15px; height: 620px; display: flex; flex-direction: column; }
+    .sidebar { width: 320px; flex-shrink: 0; background: #1e1e1e; border: 2px solid #333; border-radius: 8px; padding: 15px; height: 650px; display: flex; flex-direction: column; }
     .sidebar-title { font-size: 1rem; font-weight: bold; border-bottom: 2px solid #444; padding-bottom: 8px; margin-bottom: 10px; color: #ffd54f; display: flex; justify-content: space-between; align-items: center; }
     .tab-btn { background: #333; color: #fff; border: 1px solid #555; padding: 4px 10px; cursor: pointer; border-radius: 4px; font-size: 0.8rem; }
     .tab-btn.active { background: #ff9800; color: #000; font-weight: bold; border-color: #ff9800; }
@@ -23,7 +23,7 @@
     
     .leaderboard-item { display: flex; justify-content: space-between; background: #252526; padding: 10px; border-radius: 4px; margin-bottom: 6px; font-size: 0.85rem; border-left: 4px solid #ff9800; }
 
-    .terminal { flex: 1; border: 2px solid #333; border-radius: 8px; padding: 20px; background-color: #1e1e1e; box-shadow: 0 0 15px rgba(0,0,0,0.8); height: 620px; display: flex; flex-direction: column; }
+    .terminal { flex: 1; border: 2px solid #333; border-radius: 8px; padding: 20px; background-color: #1e1e1e; box-shadow: 0 0 15px rgba(0,0,0,0.8); height: 650px; display: flex; flex-direction: column; }
     
     .app-header { border-bottom: 2px solid #444; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
     .header-left { display: flex; align-items: center; gap: 10px; }
@@ -38,6 +38,10 @@
     .title-badge { background: #ff9800; color: #121212; font-weight: bold; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; display: inline-block; }
     
     .market-info { background: #282a36; border: 1px solid #44475a; padding: 10px; border-radius: 4px; margin-bottom: 12px; display: flex; justify-content: space-between; font-size: 0.9rem; }
+    .global-market-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; background: #181920; border: 1px solid #333; padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 0.85rem; }
+    .market-card { background: #222430; padding: 6px 10px; border-radius: 4px; border: 1px solid #3a3f58; }
+    .market-card .title { color: #8be9fd; font-weight: bold; margin-bottom: 2px; }
+
     .news { background: #252526; border-left: 4px solid #00e676; padding: 10px; margin-bottom: 12px; font-size: 0.9rem; line-height: 1.4; }
     .story-box { background: #2a1b1b; border: 1px dashed #ff5252; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.5; color: #ffccbc; }
     .dividend-box { background: #1b2a1b; border: 1px dashed #00e676; padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; color: #a5d6a7; }
@@ -59,18 +63,18 @@
       .layout-container { flex-direction: column-reverse; }
       .sidebar { width: 100%; height: 300px; }
       .terminal { height: auto; min-height: 500px; }
+      .global-market-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-
 <div class="layout-container">
   <div class="sidebar">
     <div class="sidebar-title">
       <span id="sidebar-tab-title">📜 每日對帳歷史</span>
       <div>
-        <button class="tab-btn active" id="btn-tab-history">歷史</button>
-        <button class="tab-btn" id="btn-tab-leaderboard">排行榜</button>
+        <button class="tab-btn active" id="btn-tab-history" onclick="switchTab('history')">歷史</button>
+        <button class="tab-btn" id="btn-tab-leaderboard" onclick="switchTab('leaderboard')">排行榜</button>
       </div>
     </div>
     <div class="sidebar-content" id="sidebar-content"></div>
@@ -131,21 +135,6 @@
     { name: '【黑天鵝傳言爆發】', type: 'down', news: '盤中突發產業利空消息，市場恐慌賣壓蔓延！' }
   ];
 
-  const historicalEvents = [
-    { name: "1990 台股萬二泡沫破裂", desc: "全民炒股熱潮過後，證交稅實施引發連環崩盤！" },
-    { name: "1995 台海飛彈危機", desc: "中共試射導彈，市場引發拋售潮與移民撤資！" },
-    { name: "2000 Dot-Com 網際網路泡沫", desc: "科技股一夕崩盤，本夢比幻滅，散戶集體套牢！" },
-    { name: "2003 SARS 傳染病恐慌", desc: "和平醫院封院，股市連續跌停殺盤！" },
-    { name: "2008 雷曼兄弟破產金融海嘯", desc: "次級房貸引爆全球災難，無薪假殺光所有散戶！" },
-    { name: "2020 Covid-19 全球熔斷危機", desc: "疫情爆發石油暴跌，台股跌破萬點後秒殺反彈狂暴大牛市！" },
-    { name: "2022 聯準會暴力升息", desc: "鴿派變鷹派！外資熱錢全面撤資，台股提款機化！" },
-    { name: "2024 AI 狂歡大航海時代", desc: "黃仁勳帶領供應鏈爆發，台股衝破歷史新高！" }
-  ];
-
-  const eventSubjects = ["美國聯準會", "台積電董事會", "神秘外資巨頭", "中東石油大國", "歐盟監管機構", "巴菲特旗下基金", "地緣政治局勢", "矽谷科技巨頭"];
-  const eventActions = ["無預警宣佈降息", "強行併購業界龍頭", "因黑天鵝事件暫停交易", "宣佈全面採用量子晶片", "遭大規模網攻崩潰", "秘密拋售所有台股持股", "無預警發表重大突破"];
-  const eventImpacts = ["造成市場資金極度狂歡！", "引發全球金融鏈劇烈恐慌！", "散戶爆買導致券商軟體塞爆！", "法人空單集體遭嘎到爆倉！", "大盤瞬間震盪上下洗盤 500 點！"];
-
   const storyPool = [
     "家道中落，家裡負債累累，你被迫拿僅存的 100 萬積蓄 ALL IN 股市，希望能鹹魚翻身！",
     "被交往五年的女友嫌棄沒出息狠甩，你決定化悲憤為力量，帶著 100 萬投身台股證明自己！",
@@ -162,65 +151,62 @@
     '【台股無償獻血志工】', '【滿手套牢阿呆谷谷主】'
   ];
 
-  function getRandomChoice(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
-  }
+  const defaultLeaderboard = [
+    { name: '少年股神洪大大', title: '【哲哲接班人】', days: 48, assets: 3250000 },
+    { name: '信義區當沖王', title: '【極限當沖賭王】', days: 32, assets: 1850000 },
+    { name: '台北紙箱國王', title: '【北車紙箱國王】', days: 15, assets: 0 },
+    { name: '公園阿伯', title: '【資深股市生還者】', days: 12, assets: 620000 }
+  ];
 
-  // 早盤漲跌幅限制：0.1% ~ 5.0%
+  function getRandomChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
   function generateDynamicEnvironment() {
-    const roll = Math.random();
-    let name = "", news = "";
-
-    if (roll < 0.60) {
-      const ev = getRandomChoice(environments);
-      name = ev.name; news = ev.news;
-    } else if (roll < 0.80) {
-      const ev = getRandomChoice(historicalEvents);
-      name = `【歷史重演 - ${ev.name}】`; news = ev.desc;
-    } else {
-      const sub = getRandomChoice(eventSubjects);
-      const act = getRandomChoice(eventActions);
-      const imp = getRandomChoice(eventImpacts);
-      name = `【突發新聞 - ${sub}${act}】`; news = `${sub}今日${act}，${imp}`;
-    }
-
     const isUp = Math.random() < 0.5;
-    const pctValue = parseFloat((Math.random() * 4.9 + 0.1).toFixed(1)); // 0.1% ~ 5.0%
-    const sign = isUp ? '+' : '-';
-
+    const pctValue = parseFloat((Math.random() * 4.9 + 0.1).toFixed(1));
+    const ev = getRandomChoice(environments);
     return {
-      name: name,
+      name: ev.name,
       type: isUp ? 'up' : 'down',
-      news: news,
+      news: ev.news,
       changeRate: isUp ? (pctValue / 100) : (-pctValue / 100),
-      change: `${sign}${pctValue}%`
+      change: `${isUp ? '+' : '-'}${pctValue}%`
     };
   }
 
-  // 午盤漲跌幅限制：0.1% ~ 5.0%
   function generateDynamicMidEnvironment() {
-    const isClassic = Math.random() < 0.5;
-    let name = "", news = "";
-
-    if (isClassic) {
-      const ev = getRandomChoice(midEnvironments);
-      name = ev.name; news = ev.news;
-    } else {
-      const midTitles = ["盤中跳水", "拉尾盤訊號", "外資瘋狂提款", "主力洗盤誘多", "橫盤死寂", "主力鎖漲停", "跌停打開誘空", "當沖客尾盤殺多"];
-      const title = getRandomChoice(midTitles);
-      name = `【午盤 - ${title}】`; news = `盤中市場傳出最新動態，引發 ${title} 趨勢，資金劇烈湧動！`;
-    }
-
     const isUp = Math.random() < 0.5;
-    const pctValue = parseFloat((Math.random() * 4.9 + 0.1).toFixed(1)); // 0.1% ~ 5.0%
-    const sign = isUp ? '+' : '-';
+    const pctValue = parseFloat((Math.random() * 4.9 + 0.1).toFixed(1));
+    const ev = getRandomChoice(midEnvironments);
+    return {
+      name: ev.name,
+      type: isUp ? 'up' : 'down',
+      news: ev.news,
+      changeRate: isUp ? (pctValue / 100) : (-pctValue / 100),
+      change: `${isUp ? '+' : '-'}${pctValue}%`
+    };
+  }
+
+  function generateAfterMarketData() {
+    const generateItem = (basePrice, isPoint = false) => {
+      const isUp = Math.random() < 0.5;
+      const pct = (Math.random() * 2.5 + 0.1).toFixed(2);
+      const diff = parseFloat((basePrice * (pct / 100)).toFixed(2));
+      const finalPrice = isUp ? basePrice + diff : basePrice - diff;
+      return {
+        price: isPoint ? Math.round(finalPrice).toLocaleString() : finalPrice.toFixed(2),
+        pct: `${isUp ? '+' : '-'}${pct}%`,
+        color: isUp ? 'red' : 'green'
+      };
+    };
 
     return {
-      name: name,
-      type: isUp ? 'up' : 'down',
-      news: news,
-      changeRate: isUp ? (pctValue / 100) : (-pctValue / 100),
-      change: `${sign}${pctValue}%`
+      dow: generateItem(39000, true),
+      sp500: generateItem(5200, true),
+      sox: generateItem(4800, true),
+      gold: generateItem(2350.5),
+      usdt: generateItem(32.2),
+      btc: generateItem(67500, true)
     };
   }
 
@@ -241,6 +227,9 @@
       playerName: '',
       currentEnv: null,
       currentMidEnv: null,
+      afterMarketData: null,
+      tacticalChoice: null,
+      tacticalLog: null,
       timer: null,
       timeLeft: 10,
       dailyLog: [],
@@ -262,14 +251,10 @@
 
   function calculateTitle() {
     const profitRate = ((state.assets - 1000000) / 1000000) * 100;
-    
     if (state.assets <= 0 || state.hp <= 0) {
-      if (!state.assignedGameOverTitle) {
-        state.assignedGameOverTitle = getRandomChoice(gameOverTitles);
-      }
+      if (!state.assignedGameOverTitle) state.assignedGameOverTitle = getRandomChoice(gameOverTitles);
       return state.assignedGameOverTitle;
     }
-
     if (profitRate <= -30) return '【台南反指標】';
     if (profitRate <= -15 && state.hp < 40) return '【股市冥燈】';
     if (profitRate >= 60) return '【哲哲接班人】';
@@ -278,13 +263,12 @@
     if (state.dayTradeCount >= 3) return '【極限當沖賭王】';
     if (state.day >= 10) return '【資深股市生還者】';
     if (profitRate < 0) return '【韭菜熟成中】';
-    
     return '【台股新星散戶】';
   }
 
-  function startTimer(onTimeout) {
+  function startTimer(seconds, onTimeout) {
     clearInterval(state.timer);
-    state.timeLeft = 10;
+    state.timeLeft = seconds;
     const timerBox = document.getElementById('timer-box');
     const timerSec = document.getElementById('timer-sec');
     if (timerBox) timerBox.style.display = 'block';
@@ -293,7 +277,7 @@
     state.timer = setInterval(() => {
       state.timeLeft--;
       if (timerSec) timerSec.innerText = state.timeLeft;
-      if (timerSec && state.timeLeft <= 0) {
+      if (state.timeLeft <= 0) {
         clearInterval(state.timer);
         onTimeout();
       }
@@ -353,39 +337,48 @@
           <div style="color: #aaa;">剩餘持股：${item.shares.toLocaleString()} 股</div>
           <div style="color: #aaa;">手續費+證交稅：$${(item.fee || 0).toLocaleString()}</div>
           ${item.dividend ? `<div style="color: #69f0ae;">🎁 股利入帳：+$${item.dividend.toLocaleString()}</div>` : ''}
+          ${item.tacticalLog ? `<div style="color: #ffd54f;">🎯 盤後戰術：${item.tacticalLog}</div>` : ''}
           <div style="color: #aaa;">期末資產：$${item.endAssets.toLocaleString()}</div>
         </div>
       `;
-    }).reverse().join('');
+    }).slice().reverse().join('');
   }
 
   async function renderLeaderboard() {
     const container = document.getElementById('sidebar-content');
-    container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">載入全台數據中...</div>`;
+    container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">載入排行榜數據中...</div>`;
 
+    let board = [];
     try {
       const res = await fetch('/api/leaderboard');
-      if (!res.ok) throw new Error('無法讀取排行榜');
-
-      const board = await res.json();
-
-      if (!board || board.length === 0) {
-        container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">全台尚無榜單記錄</div>`;
-        return;
+      if (res.ok) {
+        board = await res.json();
+      } else {
+        throw new Error('無 API 支援');
       }
-
-      board.sort((a, b) => b.days - a.days);
-
-      container.innerHTML = board.map((item, idx) => `
-        <div class="leaderboard-item">
-          <div><b>#${idx + 1} ${item.name}</b><br><small style="color:#aaa;">${item.title || '台股散戶'}</small></div>
-          <div style="text-align:right;"><span class="red">${item.days} 天</span><br><small>$${(item.assets || 0).toLocaleString()}</small></div>
-        </div>
-      `).join('');
     } catch (err) {
-      console.error(err);
-      container.innerHTML = `<div style="color:#ff5252;text-align:center;margin-top:20px;">讀取排行榜失敗，請重試</div>`;
+      const localData = localStorage.getItem('stock_sim_leaderboard');
+      if (localData) {
+        board = JSON.parse(localData);
+      } else {
+        board = [...defaultLeaderboard];
+        localStorage.setItem('stock_sim_leaderboard', JSON.stringify(board));
+      }
     }
+
+    if (!board || board.length === 0) {
+      container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">全台尚無榜單記錄</div>`;
+      return;
+    }
+
+    board.sort((a, b) => b.days - a.days);
+
+    container.innerHTML = board.map((item, idx) => `
+      <div class="leaderboard-item">
+        <div><b>#${idx + 1} ${item.name}</b><br><small style="color:#aaa;">${item.title || '台股散戶'}</small></div>
+        <div style="text-align:right;"><span class="red">${item.days} 天</span><br><small>$${(item.assets || 0).toLocaleString()}</small></div>
+      </div>
+    `).join('');
   }
 
   window.startGameWithStory = function() {
@@ -408,39 +401,106 @@
       timestamp: Date.now()
     };
 
+    let isRemoteSuccess = false;
     try {
       const res = await fetch('/api/leaderboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(scoreData)
       });
-
-      if (!res.ok) throw new Error('上傳失敗');
-
-      alert('🎉 成功登錄全台散戶排行榜！');
-      window.switchTab('leaderboard');
+      if (res.ok) isRemoteSuccess = true;
     } catch (error) {
-      console.error(error);
-      alert('❌ 上傳失敗，請檢查 Vercel KV 連線與設定。');
+      isRemoteSuccess = false;
+    }
+
+    const localData = localStorage.getItem('stock_sim_leaderboard');
+    let board = localData ? JSON.parse(localData) : [...defaultLeaderboard];
+    board.push(scoreData);
+    board.sort((a, b) => b.days - a.days);
+    localStorage.setItem('stock_sim_leaderboard', JSON.stringify(board));
+
+    alert(isRemoteSuccess ? '🎉 成功登錄全台雲端排行榜！' : '🎉 成績已成功登錄至本地排行榜！');
+    switchTab('leaderboard');
+  }
+
+  function recordDailyLog() {
+    const existingIndex = state.dailyLog.findIndex(l => l.day === state.day);
+
+    const profit = state.assets - state.startDayAssets;
+    const pct = ((profit / state.startDayAssets) * 100).toFixed(1);
+    const taiexDiffTotal = state.taiex - state.startDayTaiex;
+    const taiexPctTotal = ((taiexDiffTotal / state.startDayTaiex) * 100).toFixed(2);
+
+    const logData = {
+      day: state.day,
+      env: state.currentEnv ? state.currentEnv.name : '',
+      profit: profit,
+      pct: pct,
+      taiexEnd: state.taiex,
+      taiexPct: `${taiexDiffTotal >= 0 ? '+' : ''}${taiexPctTotal}%`,
+      shares: state.shares,
+      fee: state.lastFeeCost,
+      dividend: state.lastDividendInfo ? state.lastDividendInfo.totalDividend : 0,
+      tacticalLog: state.tacticalLog || null,
+      endAssets: state.assets
+    };
+
+    if (existingIndex !== -1) {
+      state.dailyLog[existingIndex] = logData;
+    } else {
+      state.dailyLog.push(logData);
+    }
+
+    if (state.currentTab === 'history') renderHistory();
+  }
+
+  function updatePreviousDayTacticalLog(logText) {
+    const prevDayIndex = state.dailyLog.findIndex(l => l.day === state.day - 1);
+    if (prevDayIndex !== -1) {
+      state.dailyLog[prevDayIndex].tacticalLog = logText;
+      if (state.currentTab === 'history') renderHistory();
     }
   }
 
   function renderPhase() {
-    if (state.phase === 'OPEN' && state.timeLeft === 10) {
-      state.currentEnv = generateDynamicEnvironment();
-      const openDiff = Math.round(state.startDayTaiex * state.currentEnv.changeRate);
-      state.openTaiexOffset = openDiff;
-      state.taiex = state.startDayTaiex + state.openTaiexOffset;
-      
-      state.startDayAssets = state.assets;
-      state.lastFeeCost = 0;
-      state.lastDividendInfo = null;
+    if (state.phase === 'OPEN') {
+      if (!state.currentEnv) {
+        state.currentEnv = generateDynamicEnvironment();
+        
+        if (state.tacticalChoice === 'TAIEX_UP' || state.tacticalChoice === 'TAIEX_DOWN') {
+          const isActualUp = state.currentEnv.type === 'up';
+          const predictedUp = state.tacticalChoice === 'TAIEX_UP';
+          const isWin = isActualUp === predictedUp;
+          const pnlPct = isWin ? (getRandomInt(3, 8) / 100) : (-getRandomInt(3, 8) / 100);
+          const pnlAmount = Math.round(state.assets * pnlPct);
+          state.assets += pnlAmount;
+          const pnlSign = pnlAmount >= 0 ? '+' : '';
+          state.tacticalLog = `預測大盤【${predictedUp?'看漲':'看跌'}】${isWin?'成功🎯':'失敗❌'}，資產 ${pnlSign}$${pnlAmount.toLocaleString()}`;
+          
+          updatePreviousDayTacticalLog(state.tacticalLog);
+        }
+        
+        const openDiff = Math.round(state.startDayTaiex * state.currentEnv.changeRate);
+        state.openTaiexOffset = openDiff;
+        state.taiex = state.startDayTaiex + state.openTaiexOffset;
+        
+        state.startDayAssets = state.assets;
+        state.lastFeeCost = 0;
+        state.lastDividendInfo = null;
+      }
     }
 
     if (state.phase === 'MID' && !state.currentMidEnv) {
       state.currentMidEnv = generateDynamicMidEnvironment();
       const midDiff = Math.round(state.startDayTaiex * state.currentMidEnv.changeRate);
       state.taiex = state.startDayTaiex + state.openTaiexOffset + midDiff;
+    }
+
+    if (state.phase === 'AFTER') {
+      if (!state.afterMarketData) {
+        state.afterMarketData = generateAfterMarketData();
+      }
+      recordDailyLog();
     }
 
     updateHUD();
@@ -472,18 +532,20 @@
         <div style="background:#222; padding:12px; border-radius:6px; margin:10px 0;">
           <p>你的散戶代號：<b>${state.playerName}</b></p>
           <p>獲得終極稱號：<b style="color:#ffd54f;">${finalTitle}</b></p>
-          <button class="btn btn-next" onclick="submitScore()">🏆 上傳成績到全台排行榜</button>
+          <button class="btn btn-next" onclick="submitScore()">🏆 上傳成績到排行榜</button>
         </div>
         <button class="btn btn-danger" onclick="resetToDayOne()">🔄 重新投胎，展開新故事 (Day 1)</button>
       `;
       return;
     }
 
-    const envColorClass = state.currentEnv.type === 'up' ? 'red' : 'green';
+    const envColorClass = state.currentEnv ? (state.currentEnv.type === 'up' ? 'red' : 'green') : 'red';
 
     if (state.phase === 'OPEN') {
-      startTimer(() => handleChoice('PANIC'));
+      startTimer(10, () => handleChoice('PANIC'));
       area.innerHTML = `
+        ${state.tacticalLog ? `<div class="dividend-box"><b>💡 昨夜盤後戰術開盤結算：</b><br>${state.tacticalLog}</div>` : ''}
+        
         <div class="market-info">
           <div>📈 市場環境：<b>${state.currentEnv.name}</b></div>
           <div>早盤走勢：<span class="${envColorClass}">${state.currentEnv.change}</span></div>
@@ -495,7 +557,7 @@
         <button class="btn" onclick="handleChoice('DAY_TRADE')">💥 無本當沖<br><small style="color:#bbb;">勝率 20~30% | 波動 +25~50% / -20~45% | 當沖降稅 0.29% | 不留倉</small></button>
       `;
     } else if (state.phase === 'MID') {
-      startTimer(() => handleChoice('PANIC'));
+      startTimer(10, () => handleChoice('PANIC'));
       const midEnvColorClass = state.currentMidEnv.type === 'up' ? 'red' : 'green';
 
       area.innerHTML = `
@@ -511,6 +573,7 @@
       `;
     } else if (state.phase === 'AFTER') {
       stopTimer();
+      
       const profit = state.assets - state.startDayAssets;
       const pct = ((profit / state.startDayAssets) * 100).toFixed(1);
       const profitColor = profit >= 0 ? 'red' : 'green';
@@ -521,28 +584,48 @@
       const taiexSign = taiexDiffTotal >= 0 ? '+' : '';
       const taiexColor = taiexDiffTotal >= 0 ? 'red' : 'green';
 
+      const d = state.afterMarketData;
+
       area.innerHTML = `
-        <h3 style="margin-top:0;">📊 【Day ${state.day} - 13:30 盤後收盤結算】</h3>
-        <p style="margin:5px 0;">今日股市已收盤，大盤、持股與損益已全部結算。</p>
-        ${state.lastDividendInfo ? `
-          <div class="dividend-box">
-            <b>🎁 【隨機股利發放日觸發！】</b><br>
-            持有股數：<b>${state.lastDividendInfo.shares.toLocaleString()} 股</b> | 每股發放：<b>$${state.lastDividendInfo.perShare} 元</b><br>
-            💰 <b>總共領到現金股利：+$${state.lastDividendInfo.totalDividend.toLocaleString()} 元！</b>
+        <h3 style="margin-top:0; margin-bottom: 8px;">📊 【Day ${state.day} - 13:30 盤後每日對帳單與戰術擬定】</h3>
+
+        <div class="global-market-grid">
+          <div class="market-card">
+            <div class="title">🇺🇸 道瓊指數</div>
+            <div>${d.dow.price} (<span class="${d.dow.color}">${d.dow.pct}</span>)</div>
           </div>
-        ` : ''}
-        <div class="log-box">
-          • 散戶代號：<b>${state.playerName}</b> (${calculateTitle()})<br>
-          • 今日市場事件：${state.currentEnv.name}<br>
-          • 📊 <b>加權指數收盤：</b><span class="${taiexColor}"><b>${state.taiex.toLocaleString()} 點</b> (${taiexSign}${taiexDiffTotal} 點 / ${taiexSign}${taiexPctTotal}%)</span><br>
-          • 📦 <b>當前持有股數：</b><b>${state.shares.toLocaleString()} 股</b><br>
-          • 💸 <b>今日交易手續費+證交稅：</b><span style="color:#ffcc80;">$${state.lastFeeCost.toLocaleString()}</span><br>
-          • 💰 <b>今日個人總損益 (含稅費)：</b><span class="${profitColor}">${sign}$${profit.toLocaleString()} (${sign}${pct}%)</span><br>
-          • 💡 <b>HP 結算事件：</b><span style="color:#ffd54f;">${state.lastHpLog}</span><br>
-          • 結算後總資產：<b>$${state.assets.toLocaleString()}</b><br>
-          • 結算後心理 HP：<b>${state.hp.toFixed(1)}%</b>
+          <div class="market-card">
+            <div class="title">🇺🇸 標普 500</div>
+            <div>${d.sp500.price} (<span class="${d.sp500.color}">${d.sp500.pct}</span>)</div>
+          </div>
+          <div class="market-card">
+            <div class="title">🇺🇸 費城半導體</div>
+            <div>${d.sox.price} (<span class="${d.sox.color}">${d.sox.pct}</span>)</div>
+          </div>
+          <div class="market-card">
+            <div class="title">🥇 黃金 / 💵 美元</div>
+            <div>$${d.gold.price} / NT$${d.usdt.price}</div>
+          </div>
+          <div class="market-card" style="grid-column: span 2;">
+            <div class="title">₿ 加密貨幣 BTC 當日行情</div>
+            <div>$${d.btc.price} (<span class="${d.btc.color}">${d.btc.pct}</span>)</div>
+          </div>
         </div>
-        <button class="btn btn-next" onclick="nextDay()">🛎️ 進入 Day ${state.day + 1} 開盤 (09:00)</button>
+
+        <p style="margin:5px 0; font-weight:bold; color:#ffd54f;">🎯 盤後戰術擬定（選擇後即刻進入下一天）：</p>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <button class="btn" style="flex:1; margin:0; text-align:center;" onclick="handleTacticalChoice('TAIEX_UP')">📈 預測明日台股開盤看漲<br><small style="color:#bbb;">綁定明日開盤漲跌對決</small></button>
+          <button class="btn" style="flex:1; margin:0; text-align:center;" onclick="handleTacticalChoice('TAIEX_DOWN')">📉 預測明日台股開盤看跌<br><small style="color:#bbb;">綁定明日開盤漲跌對決</small></button>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" style="flex:1; margin:0; text-align:center;" onclick="handleTacticalChoice('HEDGE_GOLD_USD')">🛡️ 隔夜避險：黃金/美元<br><small style="color:#bbb;">隔夜避險小幅收益</small></button>
+          <button class="btn" style="flex:1; margin:0; text-align:center;" onclick="handleTacticalChoice('HEDGE_BTC')">⚡ 隔夜避險：數位貨幣 BTC<br><small style="color:#bbb;">隔夜避險高波動收益</small></button>
+        </div>
+
+        <div class="log-box" style="margin-top:10px;">
+          • 今日個人總損益：<span class="${profitColor}">${sign}$${profit.toLocaleString()} (${sign}${pct}%)</span> | 大盤收盤：<span class="${taiexColor}">${state.taiex.toLocaleString()} 點 (${taiexSign}${taiexPctTotal}%)</span><br>
+          • 💡 HP 狀態：<span style="color:#ffd54f;">${state.lastHpLog}</span>
+        </div>
       `;
     }
   }
@@ -553,19 +636,11 @@
     let rate = 0;
     let feeRate = 0;
 
-    const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-
     if (type === 'PANIC') {
       if (state.phase === 'OPEN') {
-        const choices = ['CASH', 'MARGIN', 'DAY_TRADE'];
-        type = getRandomChoice(choices);
-        const choiceNames = { 'CASH': '【現股買進】', 'MARGIN': '【融資開滿】', 'DAY_TRADE': '【無本當沖】' };
-        alert(`⚠️ 時間到！早盤 Panic 腦袋一片空白，系統隨機幫你盲選：${choiceNames[type]}！`);
+        type = getRandomChoice(['CASH', 'MARGIN', 'DAY_TRADE']);
       } else if (state.phase === 'MID') {
-        const choices = ['HOLD', 'TAKE_PROFIT', 'DOUBLE_DOWN'];
-        type = getRandomChoice(choices);
-        const choiceNames = { 'HOLD': '【硬捏現股】', 'TAKE_PROFIT': '【部分砍倉】', 'DOUBLE_DOWN': '【加碼攤平】' };
-        alert(`⚠️ 時間到！午盤 Panic 腦袋一片空白，系統隨機幫你盲選：${choiceNames[type]}！`);
+        type = getRandomChoice(['HOLD', 'TAKE_PROFIT', 'DOUBLE_DOWN']);
       }
     }
 
@@ -574,69 +649,52 @@
 
     if (type === 'CASH') {
       feeRate = 0.004425; 
-      const winRate = getRandomChoice([0.45, 0.50, 0.55]);
-      win = rand < winRate;
+      win = rand < getRandomChoice([0.45, 0.50, 0.55]);
       rate = win ? (getRandomInt(3, 8) / 100) : (-getRandomInt(2, 6) / 100);
       state.shares = Math.floor(state.assets / simulatedStockPrice);
 
     } else if (type === 'MARGIN') {
       feeRate = 0.006000; 
-      const winRate = getRandomChoice([0.35, 0.40, 0.45]);
-      win = rand < winRate;
+      win = rand < getRandomChoice([0.35, 0.40, 0.45]);
       rate = win ? (getRandomInt(10, 20) / 100) : (-getRandomInt(8, 16) / 100);
       state.shares = Math.floor((state.assets * 2) / simulatedStockPrice);
 
     } else if (type === 'DAY_TRADE') {
       feeRate = 0.002925; 
-      const winRate = getRandomChoice([0.20, 0.25, 0.30]);
-      win = rand < winRate;
+      win = rand < getRandomChoice([0.20, 0.25, 0.30]);
       rate = win ? (getRandomInt(25, 50) / 100) : (-getRandomInt(20, 45) / 100);
       state.dayTradeCount++;
       state.shares = 0;
 
     } else if (type === 'HOLD') {
       feeRate = 0; 
-      const winRate = getRandomChoice([0.30, 0.35, 0.40]);
-      win = rand < winRate;
+      win = rand < getRandomChoice([0.30, 0.35, 0.40]);
       rate = win ? (getRandomInt(5, 12) / 100) : (-getRandomInt(4, 10) / 100);
 
     } else if (type === 'TAKE_PROFIT') {
       feeRate = 0;
       rate = 0;
-      const sellRatio = (getRandomInt(30, 80) / 100);
-      const remainingShares = Math.floor(state.shares * (1 - sellRatio));
-      state.shares = remainingShares;
+      state.shares = Math.floor(state.shares * (1 - (getRandomInt(30, 80) / 100)));
 
     } else if (type === 'DOUBLE_DOWN') {
       feeRate = 0.004425; 
-      const winRate = getRandomChoice([0.15, 0.20, 0.25]);
-      win = rand < winRate;
+      win = rand < getRandomChoice([0.15, 0.20, 0.25]);
       rate = win ? (getRandomInt(20, 40) / 100) : (-getRandomInt(15, 35) / 100);
       state.shares *= 2;
     }
 
-    const currentFeeCost = Math.round(state.assets * feeRate);
-    state.lastFeeCost += currentFeeCost;
-
-    const netRate = rate - feeRate;
-    state.assets = Math.round(state.assets * (1 + netRate));
+    state.lastFeeCost += Math.round(state.assets * feeRate);
+    state.assets = Math.round(state.assets * (1 + (rate - feeRate)));
 
     if (state.phase === 'OPEN') {
       state.phase = 'MID';
     } else if (state.phase === 'MID') {
       
-      let totalDividend = 0;
       if (state.day >= state.nextDividendDay && state.shares > 0) {
         const perShareDividend = (Math.random() * 3 + 0.5).toFixed(2);
-        totalDividend = Math.round(state.shares * perShareDividend);
+        const totalDividend = Math.round(state.shares * perShareDividend);
         state.assets += totalDividend;
-        
-        state.lastDividendInfo = {
-          shares: state.shares,
-          perShare: perShareDividend,
-          totalDividend: totalDividend
-        };
-
+        state.lastDividendInfo = { totalDividend: totalDividend };
         state.nextDividendDay = state.day + getRandomInt(8, 20);
       }
 
@@ -645,77 +703,57 @@
       const absPnlPct = Math.abs(profit / state.startDayAssets) * 100;
       
       if (absPnlPct === 0) {
-        state.lastHpLog = `【波瀾不驚】今日損益平盤，心情毫無波折，HP 保持不變。`;
+        state.lastHpLog = `【波瀾不驚】今日損益平盤，HP 保持不變。`;
+      } else if (profit > 0) {
+        const hpGain = Math.min(15, parseFloat((absPnlPct * 0.8).toFixed(1)));
+        state.hp = Math.min(100, state.hp + hpGain);
+        state.lastHpLog = `【賺錢爽翻】今日大賺 +${pct}%，心理 HP 回復 +${hpGain}%！`;
       } else {
-        let isPositiveEffect = false;
-        if (profit < 0) {
-          isPositiveEffect = Math.random() < 0.2; 
-        } else {
-          isPositiveEffect = Math.random() < 0.8;
-        }
-        
-        const minPct = absPnlPct / 2;
-        const maxPct = absPnlPct;
-        const finalHpDeltaPct = Math.random() * (maxPct - minPct) + minPct;
-        const hpDeltaDisplay = finalHpDeltaPct.toFixed(1);
-
-        if (isPositiveEffect) {
-          state.hp = Math.min(100, state.hp + finalHpDeltaPct);
-          if (profit < 0) {
-            state.lastHpLog = `【精神勝利】今日虧損 ${Math.abs(pct)}%，但堅信沒賣就不算賠！HP 回復 +${hpDeltaDisplay}%！`;
-          } else {
-            state.lastHpLog = `【利多大補】今日淨賺 ${pct}%，口袋滿幫！HP 大幅回復 +${hpDeltaDisplay}%！`;
-          }
-        } else {
-          state.hp = Math.max(0, state.hp - finalHpDeltaPct);
-          if (profit < 0) {
-            state.lastHpLog = `【韭菜慘叫】今日虧損 ${Math.abs(pct)}%（含稅費 $${state.lastFeeCost.toLocaleString()}），心臟受不了！HP 扣除 -${hpDeltaDisplay}%！`;
-          } else {
-            state.lastHpLog = `【賣早心痛】今日雖獲利 ${pct}%，但想到隔壁老王賺更多！HP 痛苦扣除 -${hpDeltaDisplay}%！`;
-          }
-        }
+        const hpLoss = Math.min(30, parseFloat((absPnlPct * 1.2).toFixed(1)));
+        state.hp = Math.max(0, state.hp - hpLoss);
+        state.lastHpLog = `【韭菜受創】今日虧損 ${pct}%，心理 HP 扣減 -${hpLoss}%！`;
       }
-
-      const taiexDiffTotal = state.taiex - state.startDayTaiex;
-      const taiexPctTotal = ((taiexDiffTotal / state.startDayTaiex) * 100).toFixed(2);
-      const taiexSign = taiexDiffTotal >= 0 ? '+' : '';
-
-      state.dailyLog.push({
-        day: state.day,
-        env: state.currentEnv.name,
-        profit: profit,
-        pct: pct,
-        fee: state.lastFeeCost,
-        shares: state.shares,
-        dividend: totalDividend > 0 ? totalDividend : null,
-        endAssets: state.assets,
-        taiexEnd: state.taiex,
-        taiexPct: `${taiexSign}${taiexPctTotal}%`
-      });
-
-      if (state.currentTab === 'history') renderHistory();
 
       state.phase = 'AFTER';
     }
 
     renderPhase();
-  }
+  };
 
-  window.nextDay = function() {
+  window.handleTacticalChoice = function(choice) {
+    stopTimer();
+    state.tacticalChoice = choice;
+
+    if (choice === 'PANIC') {
+      state.tacticalChoice = getRandomChoice(['TAIEX_UP', 'TAIEX_DOWN', 'HEDGE_GOLD_USD', 'HEDGE_BTC']);
+    }
+
+    if (state.tacticalChoice === 'HEDGE_GOLD_USD') {
+      const isWin = Math.random() < 0.6;
+      const pnlAmount = Math.round(state.assets * (isWin ? (getRandomInt(1, 3) / 100) : (-getRandomInt(1, 2) / 100)));
+      state.assets += pnlAmount;
+      state.tacticalLog = `黃金/美元避險${isWin?'獲利':'微虧'} ${pnlAmount >= 0 ? '+' : ''}$${pnlAmount.toLocaleString()}`;
+    } else if (state.tacticalChoice === 'HEDGE_BTC') {
+      const isWin = Math.random() < 0.45;
+      const pnlAmount = Math.round(state.assets * (isWin ? (getRandomInt(4, 10) / 100) : (-getRandomInt(4, 9) / 100)));
+      state.assets += pnlAmount;
+      state.tacticalLog = `BTC 避險${isWin?'爆賺🎯':'爆倉❌'} ${pnlAmount >= 0 ? '+' : ''}$${pnlAmount.toLocaleString()}`;
+    } else if (state.tacticalChoice === 'TAIEX_UP' || state.tacticalChoice === 'TAIEX_DOWN') {
+      state.tacticalLog = null; 
+    }
+
+    recordDailyLog();
+
     state.day++;
     state.startDayTaiex = state.taiex;
-    state.openTaiexOffset = 0;
-    state.phase = 'OPEN';
+    state.currentEnv = null;
     state.currentMidEnv = null;
-    state.timeLeft = 10;
+    state.afterMarketData = null;
+    state.phase = 'OPEN';
     renderPhase();
-  }
+  };
 
-  document.getElementById('btn-tab-history').addEventListener('click', () => window.switchTab('history'));
-  document.getElementById('btn-tab-leaderboard').addEventListener('click', () => window.switchTab('leaderboard'));
-
-  resetToDayOne();
+  renderPhase();
 </script>
-
 </body>
 </html>
