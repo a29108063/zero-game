@@ -246,7 +246,6 @@
       assignedGameOverTitle: null,
       lastHpLog: '',
       lastFeeCost: 0,
-      // 股利下次觸發天數改為 12 到 28 天之間的隨機亂數，避免每次都在第12天固定觸發
       nextDividendDay: Math.floor(Math.random() * 17) + 12,
       lastDividendInfo: null
     };
@@ -312,7 +311,8 @@
     document.getElementById('title-badge').innerText = calculateTitle();
 
     const taiexHud = document.getElementById('taiex-hud');
-    const taiexDiff = state.taiex - 40000;
+    // 嚴格比對當天開盤基準點 (startDayTaiex)，計算當日即時漲跌
+    const taiexDiff = state.taiex - state.startDayTaiex;
     const taiexSign = taiexDiff >= 0 ? '+' : '';
     const taiexColor = taiexDiff >= 0 ? 'red' : 'green';
     taiexHud.innerHTML = `<span class="${taiexColor}">${state.taiex.toLocaleString()} (${taiexSign}${taiexDiff})</span>`;
@@ -426,7 +426,7 @@
   function renderPhase() {
     if (state.phase === 'OPEN' && state.timeLeft === 10) {
       state.currentEnv = generateDynamicEnvironment();
-      state.startDayTaiex = state.taiex;
+      state.startDayTaiex = state.taiex; // 記錄當天開盤時的基準點
       const taiexDiff = Math.round(state.taiex * state.currentEnv.changeRate);
       state.taiex = state.taiex + taiexDiff;
       state.startDayAssets = state.assets;
@@ -531,7 +531,7 @@
         <div class="log-box">
           • 散戶代號：<b>${state.playerName}</b> (${calculateTitle()})<br>
           • 今日市場事件：${state.currentEnv.name}<br>
-          • 📊 <b>加權指數收盤：</b><b>${state.taiex.toLocaleString()} 點</b> (<span class="${taiexColor}">${taiexSign}${taiexDiffTotal} 點 / ${taiexSign}${taiexPctTotal}%</span>)<br>
+          • 📊 <b>加權指數收盤：</b><span class="${taiexColor}"><b>${state.taiex.toLocaleString()} 點</b> (${taiexSign}${taiexDiffTotal} 點 / ${taiexSign}${taiexPctTotal}%)</span><br>
           • 📦 <b>當前持有股數：</b><b>${state.shares.toLocaleString()} 股</b><br>
           • 💸 <b>今日交易手續費+證交稅：</b><span style="color:#ffcc80;">$${state.lastFeeCost.toLocaleString()}</span><br>
           • 💰 <b>今日個人總損益 (含稅費)：</b><span class="${profitColor}">${sign}$${profit.toLocaleString()} (${sign}${pct}%)</span><br>
@@ -634,7 +634,6 @@
           totalDividend: totalDividend
         };
 
-        // 下一次股利觸發間隔拉大為 8 到 20 天隨機
         state.nextDividendDay = state.day + getRandomInt(8, 20);
       }
 
