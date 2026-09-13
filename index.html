@@ -169,10 +169,11 @@
     const roll = Math.random();
     let name = "", news = "";
 
-    if (roll < 0.35) {
+    // 權重調整：60% 基本盤, 20% 歷史重演, 20% 突發新聞
+    if (roll < 0.60) {
       const ev = getRandomChoice(environments);
       name = ev.name; news = ev.news;
-    } else if (roll < 0.65) {
+    } else if (roll < 0.80) {
       const ev = getRandomChoice(historicalEvents);
       name = `【歷史重演 - ${ev.name}】`; news = ev.desc;
     } else {
@@ -579,26 +580,21 @@
       const profit = state.assets - state.startDayAssets;
       const pct = ((profit / state.startDayAssets) * 100).toFixed(1);
       
-      // ===== 🎯 優化後的權重亂數 HP 計算機制 =====
-      const absPnlPct = Math.abs(profit / state.startDayAssets) * 100; // 例如 6.8%
+      const absPnlPct = Math.abs(profit / state.startDayAssets) * 100;
       
       if (absPnlPct === 0) {
         state.lastHpLog = `【波瀾不驚】今日損益平盤，心情毫無波折，HP 保持不變。`;
       } else {
-        // 第一層：根據「賺錢」或「賠錢」給予不同的正負方向機率 (80% 符合常理, 20% 觸發反常心態)
         let isPositiveEffect = false;
         if (profit < 0) {
-          // 賠錢時：80% 扣血(痛苦)，20% 加血(阿Q精神)
           isPositiveEffect = Math.random() < 0.2; 
         } else {
-          // 賺錢時：80% 加血(開心)，20% 扣血(賣早心痛)
           isPositiveEffect = Math.random() < 0.8;
         }
         
-        // 第二層：亂數生成%數 (範圍在 損益幅度/2 ~ 損益全額 之間)
-        const minPct = absPnlPct / 2; // 例如 3.4%
-        const maxPct = absPnlPct;     // 例如 6.8%
-        const finalHpDeltaPct = Math.random() * (maxPct - minPct) + minPct; // 3.4% ~ 6.8%
+        const minPct = absPnlPct / 2;
+        const maxPct = absPnlPct;
+        const finalHpDeltaPct = Math.random() * (maxPct - minPct) + minPct;
         const hpDeltaDisplay = finalHpDeltaPct.toFixed(1);
 
         if (isPositiveEffect) {
