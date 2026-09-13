@@ -274,7 +274,6 @@
       assignedGameOverTitle: null,
       lastHpLog: '',
       lastFeeCost: 0,
-      nextDividendDay: Math.floor(Math.random() * 17) + 12,
       lastDividendInfo: null
     };
   }
@@ -461,6 +460,29 @@
     switchTab('leaderboard');
   }
 
+  function checkDividendPayout() {
+    // 隨機發放機制：每日結算時有 20% 機率突發除息發放股利
+    const isDividendDay = Math.random() < 0.20;
+    if (isDividendDay) {
+      const dividendPerShare = parseFloat((Math.random() * 4.0 + 0.5).toFixed(1));
+      if (state.shares > 0) {
+        const totalDividend = Math.round(state.shares * dividendPerShare);
+        state.assets += totalDividend;
+        state.lastDividendInfo = {
+          perShare: dividendPerShare,
+          totalDividend: totalDividend,
+          missed: false
+        };
+      } else {
+        state.lastDividendInfo = {
+          perShare: dividendPerShare,
+          totalDividend: 0,
+          missed: true
+        };
+      }
+    }
+  }
+
   function recordDailyLog() {
     const existingIndex = state.dailyLog.findIndex(l => l.day === state.day);
 
@@ -546,6 +568,7 @@
       if (!state.afterMarketData) {
         state.afterMarketData = generateAfterMarketData();
       }
+      checkDividendPayout();
       recordDailyLog();
     }
 
@@ -632,8 +655,19 @@
 
       const d = state.afterMarketData;
 
+      let dividendMsg = '';
+      if (state.lastDividendInfo) {
+        if (!state.lastDividendInfo.missed) {
+          dividendMsg = `<div class="dividend-box">🎁 <b>突發除息利多！</b>配發每股 <b>$${state.lastDividendInfo.perShare}</b> 元，共入帳 <b style="color:#69f0ae;">+$${state.lastDividendInfo.totalDividend.toLocaleString()}</b> 元現金股利！</div>`;
+        } else {
+          dividendMsg = `<div class="dividend-box" style="background:#2a251b; border-color:#ffb74d; color:#ffe082;">⚠️ <b>突發除息事件：</b>今日配發每股 <b>$${state.lastDividendInfo.perShare}</b> 元，但因手頭無持股錯過領股利機會！</div>`;
+        }
+      }
+
       area.innerHTML = `
         <h3 style="margin-top:0; margin-bottom: 8px;">📊 【Day ${state.day} - 13:30 盤後每日對帳單與戰術擬定】</h3>
+
+        ${dividendMsg}
 
         <div class="global-market-grid">
           <div class="market-card">
@@ -691,91 +725,75 @@
     }
 
     const rand = Math.random();
-    const simulatedStockPrice = getRandomInt(50, 150);
 
     if (type === 'CASH') {
-      feeRate = 0.004425; 
-      win = rand < getRandomChoice([0.45, 0.50, 0.55]);
-      rate = win ? (getRandomInt(3, 8) / 100) : (-getRandomInt(2, 6) / 100);
-      state.shares = Math.floor(state.assets / simulatedStockPrice);
-
+      win = rand < 0.50;
+      rate = win ? getRandomInt(3, 8) / 100 : -getRandomInt(2, 6) / 100;
+      feeRate = 0.0044;
+      state.shares = Math.floor((state.assets * 0.95) / (state.taiex / 1000));
     } else if (type === 'MARGIN') {
-      feeRate = 0.006000; 
-      win = rand < getRandomChoice([0.35, 0.40, 0.45]);
-      rate = win ? (getRandomInt(10, 20) / 100) : (-getRandomInt(8, 16) / 100);
-      state.shares = Math.floor((state.assets * 2) / simulatedStockPrice);
-
+      win = rand < 0.40;
+      rate = win ? getRandomInt(10, 20) / 100 : -getRandomInt(8, 16) / 100;
+      feeRate = 0.0060;
+      state.shares = Math.floor((state.assets * 2.2) / (state.taiex / 1000));
     } else if (type === 'DAY_TRADE') {
-      feeRate = 0.002925; 
-      win = rand < getRandomChoice([0.20, 0.25, 0.30]);
-      rate = win ? (getRandomInt(25, 50) / 100) : (-getRandomInt(20, 45) / 100);
+      win = rand < 0.25;
+      rate = win ? getRandomInt(25, 50) / 100 : -getRandomInt(20, 45) / 100;
+      feeRate = 0.0029;
       state.dayTradeCount++;
       state.shares = 0;
-
     } else if (type === 'HOLD') {
-      feeRate = 0; 
-      win = rand < getRandomChoice([0.30, 0.35, 0.40]);
-      rate = win ? (getRandomInt(5, 12) / 100) : (-getRandomInt(4, 10) / 100);
-
-    } else if (type === 'TAKE_PROFIT') {
+      win = rand < 0.35;
+      rate = win ? getRandomInt(5, 12) / 100 : -getRandomInt(4, 10) / 100;
       feeRate = 0;
-      rate = 0;
-      state.shares = Math.floor(state.shares * (1 - (getRandomInt(30, 80) / 100)));
-
+    } else if (type === 'TAKE_PROFIT') {
+      win = true;
+      rate = -getRandomInt(1, 4) / 100;
+      feeRate = 0.0020;
+      const cutRatio = (getRandomInt(30, 80) / 100);
+      state.shares = Math.floor(state.shares * (1 - cutRatio));
     } else if (type === 'DOUBLE_DOWN') {
-      feeRate = 0.004425; 
-      win = rand < getRandomChoice([0.15, 0.20, 0.25]);
-      rate = win ? (getRandomInt(20, 40) / 100) : (-getRandomInt(15, 35) / 100);
-      state.shares *= 2;
+      win = rand < 0.20;
+      rate = win ? getRandomInt(20, 40) / 100 : -getRandomInt(15, 35) / 100;
+      feeRate = 0.0044;
+      state.shares = state.shares * 2;
     }
 
-    state.lastFeeCost += Math.round(state.assets * feeRate);
-    state.assets = Math.round(state.assets * (1 + (rate - feeRate)));
+    const pnl = Math.round(state.assets * rate);
+    const feeCost = Math.round(state.assets * feeRate);
+    state.lastFeeCost += feeCost;
+    state.assets = Math.max(0, state.assets + pnl - feeCost);
+
+    let hpLoss = 0;
+    if (pnl < 0) {
+      hpLoss = Math.min(30, Math.abs(rate * 100) * 1.2);
+      state.hp = Math.max(0, state.hp - hpLoss);
+      state.lastHpLog = `虧損導致心態崩潰，HP -${hpLoss.toFixed(1)}%`;
+    } else {
+      const hpGain = Math.min(15, (rate * 100) * 0.8);
+      state.hp = Math.min(100, state.hp + hpGain);
+      state.lastHpLog = `獲利信心大增，HP +${hpGain.toFixed(1)}%`;
+    }
 
     if (state.phase === 'OPEN') {
       state.phase = 'MID';
     } else if (state.phase === 'MID') {
-      
-      if (state.day >= state.nextDividendDay && state.shares > 0) {
-        const perShareDividend = (Math.random() * 3 + 0.5).toFixed(2);
-        const totalDividend = Math.round(state.shares * perShareDividend);
-        state.assets += totalDividend;
-        state.lastDividendInfo = { totalDividend: totalDividend };
-        state.nextDividendDay = state.day + getRandomInt(8, 20);
-      }
-
-      const profit = state.assets - state.startDayAssets;
-      const pct = ((profit / state.startDayAssets) * 100).toFixed(1);
-      const absPnlPct = Math.abs(profit / state.startDayAssets) * 100;
-      
-      if (absPnlPct === 0) {
-        state.lastHpLog = `【波瀾不驚】今日損益平盤，HP 保持不變。`;
-      } else if (profit > 0) {
-        const hpGain = Math.min(15, parseFloat((absPnlPct * 0.8).toFixed(1)));
-        state.hp = Math.min(100, state.hp + hpGain);
-        state.lastHpLog = `【賺錢爽翻】今日大賺 +${pct}%，心理 HP 回復 +${hpGain}%！`;
-      } else {
-        const hpLoss = Math.min(30, parseFloat((absPnlPct * 1.2).toFixed(1)));
-        state.hp = Math.max(0, state.hp - hpLoss);
-        state.lastHpLog = `【韭菜受創】今日虧損 ${pct}%，心理 HP 扣減 -${hpLoss}%！`;
-      }
-
       state.phase = 'AFTER';
     }
-
     renderPhase();
   };
 
   window.handleTacticalChoice = function(choice) {
     state.pendingTacticalChoice = choice;
     state.day++;
+    state.phase = 'OPEN';
     state.currentEnv = null;
     state.currentMidEnv = null;
     state.afterMarketData = null;
-    state.phase = 'OPEN';
     renderPhase();
   };
 
+  // 初始化啟動畫面
   renderPhase();
 </script>
 </body>
