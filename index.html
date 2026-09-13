@@ -19,7 +19,8 @@
     .sidebar-content { flex: 1; overflow-y: auto; padding-right: 5px; }
     
     .history-card { background: #282a36; border: 1px solid #44475a; border-radius: 6px; padding: 10px; margin-bottom: 8px; font-size: 0.85rem; }
-    .history-card .day-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 4px; }
+    .history-card .day-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 6px; border-bottom: 1px solid #44475a; padding-bottom: 4px; }
+    .history-grid { display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; color: #aaa; align-items: center; }
     
     .leaderboard-item { display: flex; justify-content: space-between; background: #252526; padding: 10px; border-radius: 4px; margin-bottom: 6px; font-size: 0.85rem; border-left: 4px solid #ff9800; }
 
@@ -109,7 +110,7 @@
 </div>
 
 <script>
-  const environments = [
+  const baseEnvironments = [
     { name: '【牛市狂歡】', type: 'up', news: '美股科技股大漲，外資強勢歸隊，台股跳空開高衝刺！' },
     { name: '【熊市反彈】', type: 'down', news: '美股暴跌震盪，台股開盤重挫，散戶恐慌殺出！' },
     { name: '【高檔震盪】', type: 'up', news: '多空交戰劇烈，台積電狹幅平盤震盪，方向不明。' },
@@ -120,6 +121,32 @@
     { name: '【量縮死寂盤】', type: 'down', news: '觀望氣氛極濃，預期美聯準會開會，市場成交量創歷史新低，上下震盪極小。' },
     { name: '【妖股狂飆】', type: 'up', news: '中小型股與概念股無序飆漲！漲停板家數破百，市場投機氣氛達到頂點！' },
     { name: '【長假前拋售潮】', type: 'down', news: '連假將至，丙種資金結算與散戶抱現金過節賣壓湧現，盤中一路走低！' }
+  ];
+
+  const historicalEnvironments = [
+    { name: '【2020疫情熔斷恐慌】', type: 'down', news: '全球疫情全面爆發，恐慌性拋售潮湧現，台股盤中多檔跌停！' },
+    { name: '【2021航海王狂飆】', type: 'up', news: '貨櫃三雄成交量佔全台四成！水手們全面起航，天天漲停鎖死！' },
+    { name: '【2022萬八崩盤之夜】', type: 'down', news: '通膨巨獸失控與升息壓力襲來，萬八大關瞬間失守，多頭慘遭血洗！' },
+    { name: '【2023AI伺服器狂潮】', type: 'up', news: 'ChatGPT 引爆全球 AI 熱潮，相關概念股連拉漲停，資金全面湧入！' },
+    { name: '【2018中美貿易戰血洗】', type: 'down', news: '關稅大棒無預警揮下，電子代工大廠一片綠油油，外資急殺百億！' },
+    { name: '【2015股災國安基金喊話】', type: 'down', news: '中國股災外溢效應，台股摜破十年線，市場哀鴻遍野！' },
+    { name: '【2024半導體大反攻】', type: 'up', news: '護國神山法說會繳出超狂財報，帶動台股單日狂飆逾五百點！' },
+    { name: '【2011歐債危機恐慌】', type: 'down', news: '歐洲債信疑慮延燒，外資瘋狂匯出提款，台股出現多殺多慘劇！' },
+    { name: '【2017蘋果發表會魔咒】', type: 'down', news: '新機發表利多出盡，供應鏈概念股遭主力集體倒貨重挫！' },
+    { name: '【2025量子晶片奇蹟日】', type: 'up', news: '台灣突破性量子技術發表，市場信心爆棚，迎來史詩級絕地大反彈！' }
+  ];
+
+  const breakingNewsEnvironments = [
+    { name: '【突發大地震晶圓廠停機】', type: 'down', news: '花蓮發生規模芮氏規模 7.2 強震，竹科傳出預防性停機，電子股全面剉咧等！' },
+    { name: '【央行無預警升息一碼】', type: 'down', news: '房市與股市資金同時緊縮，金融股雖受惠但大盤融資維持率遭遇嚴峻考驗！' },
+    { name: '【神祕主力神級大買超】', type: 'up', news: '盤後傳出神祕大戶與本土法人聯手大舉買超權值股，空軍遭到強力回補夾殺！' },
+    { name: '【半導體大老重磅看好】', type: 'up', news: '龍頭企業大老公開直言「景氣已過最壞情況，未來三年大好」，買盤瞬間沸騰！' },
+    { name: '【地緣政治航運危機】', type: 'down', news: '中東衝突升級影響航運與油價，通膨疑慮再起，台股開盤骨牌式下殺！' },
+    { name: '【外資期指空單大減】', type: 'up', news: '外資台指期淨空單大幅回補，市場解讀為壓抑已久的多頭即將絕地大反攻！' },
+    { name: '【金管會放寬信用管制】', type: 'up', news: '政策面釋大利多，放寬散戶融資維持率與擔保品限制，市場資金信心回溫！' },
+    { name: '【突發匯率急貶外資落跑】', type: 'down', news: '新台幣兌美元匯率盤中急貶逾 2 角，外資現貨市場加速落跑，指數溜滑梯！' },
+    { name: '【重量級科技大廠法說大好】', type: 'up', news: '權值股法說會釋出超越市場預期的爆炸性財報，供應鏈全面亮燈！' },
+    { name: '【夜盤期貨無預警大跳水】', type: 'down', news: '美股盤前突發重大利空，台指期夜盤直線下殺逾 400 點，散戶皮皮剉！' }
   ];
 
   const midEnvironments = [
@@ -162,12 +189,21 @@
   function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
   function generateDynamicEnvironment() {
-    const isUp = Math.random() < 0.5;
+    const randPool = Math.random();
+    let ev;
+    if (randPool < 0.60) {
+      ev = getRandomChoice(baseEnvironments);
+    } else if (randPool < 0.80) {
+      ev = getRandomChoice(historicalEnvironments);
+    } else {
+      ev = getRandomChoice(breakingNewsEnvironments);
+    }
+
+    const isUp = ev.type === 'up';
     const pctValue = parseFloat((Math.random() * 4.9 + 0.1).toFixed(1));
-    const ev = getRandomChoice(environments);
     return {
       name: ev.name,
-      type: isUp ? 'up' : 'down',
+      type: ev.type,
       news: ev.news,
       changeRate: isUp ? (pctValue / 100) : (-pctValue / 100),
       change: `${isUp ? '+' : '-'}${pctValue}%`
@@ -228,8 +264,8 @@
       currentEnv: null,
       currentMidEnv: null,
       afterMarketData: null,
-      tacticalChoice: null,
-      tacticalLog: null,
+      pendingTacticalChoice: null,
+      todayTacticalLog: null,
       timer: null,
       timeLeft: 10,
       dailyLog: [],
@@ -333,12 +369,14 @@
             <span>Day ${item.day} ${item.env}</span>
             <span class="${diffColor}">${sign}$${item.profit.toLocaleString()} (${sign}${item.pct}%)</span>
           </div>
-          <div style="color: #aaa;">大盤收盤：${item.taiexEnd.toLocaleString()} (${item.taiexPct})</div>
-          <div style="color: #aaa;">剩餘持股：${item.shares.toLocaleString()} 股</div>
-          <div style="color: #aaa;">手續費+證交稅：$${(item.fee || 0).toLocaleString()}</div>
-          ${item.dividend ? `<div style="color: #69f0ae;">🎁 股利入帳：+$${item.dividend.toLocaleString()}</div>` : ''}
-          ${item.tacticalLog ? `<div style="color: #ffd54f;">🎯 盤後戰術：${item.tacticalLog}</div>` : ''}
-          <div style="color: #aaa;">期末資產：$${item.endAssets.toLocaleString()}</div>
+          <div class="history-grid">
+            <div>大盤收盤：</div><div>${item.taiexEnd.toLocaleString()} (${item.taiexPct})</div>
+            <div>剩餘持股：</div><div>${item.shares.toLocaleString()} 股</div>
+            <div>手續費+證交稅：</div><div>$${(item.fee || 0).toLocaleString()}</div>
+            ${item.dividend ? `<div>🎁 股利入帳：</div><div style="color: #69f0ae;">+$${item.dividend.toLocaleString()}</div>` : ''}
+            ${item.tacticalLog ? `<div style="color: #ffd54f; grid-column: span 2;">🎯 盤後戰術：${item.tacticalLog}</div>` : ''}
+            <div style="color: #e0e0e0; font-weight: bold;">期末資產：</div><div style="color: #e0e0e0; font-weight: bold;">$${item.endAssets.toLocaleString()}</div>
+          </div>
         </div>
       `;
     }).slice().reverse().join('');
@@ -441,7 +479,7 @@
       shares: state.shares,
       fee: state.lastFeeCost,
       dividend: state.lastDividendInfo ? state.lastDividendInfo.totalDividend : 0,
-      tacticalLog: state.tacticalLog || null,
+      tacticalLog: state.todayTacticalLog || null,
       endAssets: state.assets
     };
 
@@ -454,30 +492,38 @@
     if (state.currentTab === 'history') renderHistory();
   }
 
-  function updatePreviousDayTacticalLog(logText) {
-    const prevDayIndex = state.dailyLog.findIndex(l => l.day === state.day - 1);
-    if (prevDayIndex !== -1) {
-      state.dailyLog[prevDayIndex].tacticalLog = logText;
-      if (state.currentTab === 'history') renderHistory();
-    }
-  }
-
   function renderPhase() {
     if (state.phase === 'OPEN') {
       if (!state.currentEnv) {
         state.currentEnv = generateDynamicEnvironment();
         
-        if (state.tacticalChoice === 'TAIEX_UP' || state.tacticalChoice === 'TAIEX_DOWN') {
-          const isActualUp = state.currentEnv.type === 'up';
-          const predictedUp = state.tacticalChoice === 'TAIEX_UP';
-          const isWin = isActualUp === predictedUp;
-          const pnlPct = isWin ? (getRandomInt(3, 8) / 100) : (-getRandomInt(3, 8) / 100);
-          const pnlAmount = Math.round(state.assets * pnlPct);
-          state.assets += pnlAmount;
-          const pnlSign = pnlAmount >= 0 ? '+' : '';
-          state.tacticalLog = `預測大盤【${predictedUp?'看漲':'看跌'}】${isWin?'成功🎯':'失敗❌'}，資產 ${pnlSign}$${pnlAmount.toLocaleString()}`;
-          
-          updatePreviousDayTacticalLog(state.tacticalLog);
+        state.todayTacticalLog = null;
+        if (state.pendingTacticalChoice) {
+          const choice = state.pendingTacticalChoice;
+          state.pendingTacticalChoice = null;
+
+          if (choice === 'TAIEX_UP' || choice === 'TAIEX_DOWN') {
+            const isActualUp = state.currentEnv.type === 'up';
+            const predictedUp = choice === 'TAIEX_UP';
+            const isWin = isActualUp === predictedUp;
+            const pnlPct = isWin ? (getRandomInt(3, 8) / 100) : (-getRandomInt(3, 8) / 100);
+            const pnlAmount = Math.round(state.assets * pnlPct);
+            state.assets += pnlAmount;
+            const pnlSign = pnlAmount >= 0 ? '+' : '';
+            state.todayTacticalLog = `預測大盤【${predictedUp?'看漲':'看跌'}】${isWin?'成功🎯':'失敗❌'}，資產 ${pnlSign}$${pnlAmount.toLocaleString()}`;
+          } else if (choice === 'HEDGE_GOLD_USD') {
+            const hPnlPct = getRandomInt(5, 15) / 1000;
+            const pnlAmount = Math.round(state.assets * hPnlPct);
+            state.assets += pnlAmount;
+            state.todayTacticalLog = `🛡️ 黃金/美元避險成功，資產 +$${pnlAmount.toLocaleString()}`;
+          } else if (choice === 'HEDGE_BTC') {
+            const btcWin = Math.random() < 0.5;
+            const btcPnlPct = btcWin ? (getRandomInt(3, 10) / 100) : (-getRandomInt(3, 10) / 100);
+            const pnlAmount = Math.round(state.assets * btcPnlPct);
+            state.assets += pnlAmount;
+            const pnlSign = pnlAmount >= 0 ? '+' : '';
+            state.todayTacticalLog = `⚡ BTC 避險${btcWin ? '爆賺🎯' : '爆倉❌'}，資產 ${pnlSign}$${pnlAmount.toLocaleString()}`;
+          }
         }
         
         const openDiff = Math.round(state.startDayTaiex * state.currentEnv.changeRate);
@@ -544,7 +590,7 @@
     if (state.phase === 'OPEN') {
       startTimer(10, () => handleChoice('PANIC'));
       area.innerHTML = `
-        ${state.tacticalLog ? `<div class="dividend-box"><b>💡 昨夜盤後戰術開盤結算：</b><br>${state.tacticalLog}</div>` : ''}
+        ${state.todayTacticalLog ? `<div class="dividend-box"><b>💡 昨夜盤後戰術開盤結算：</b><br>${state.todayTacticalLog}</div>` : ''}
         
         <div class="market-info">
           <div>📈 市場環境：<b>${state.currentEnv.name}</b></div>
@@ -721,31 +767,8 @@
   };
 
   window.handleTacticalChoice = function(choice) {
-    stopTimer();
-    state.tacticalChoice = choice;
-
-    if (choice === 'PANIC') {
-      state.tacticalChoice = getRandomChoice(['TAIEX_UP', 'TAIEX_DOWN', 'HEDGE_GOLD_USD', 'HEDGE_BTC']);
-    }
-
-    if (state.tacticalChoice === 'HEDGE_GOLD_USD') {
-      const isWin = Math.random() < 0.6;
-      const pnlAmount = Math.round(state.assets * (isWin ? (getRandomInt(1, 3) / 100) : (-getRandomInt(1, 2) / 100)));
-      state.assets += pnlAmount;
-      state.tacticalLog = `黃金/美元避險${isWin?'獲利':'微虧'} ${pnlAmount >= 0 ? '+' : ''}$${pnlAmount.toLocaleString()}`;
-    } else if (state.tacticalChoice === 'HEDGE_BTC') {
-      const isWin = Math.random() < 0.45;
-      const pnlAmount = Math.round(state.assets * (isWin ? (getRandomInt(4, 10) / 100) : (-getRandomInt(4, 9) / 100)));
-      state.assets += pnlAmount;
-      state.tacticalLog = `BTC 避險${isWin?'爆賺🎯':'爆倉❌'} ${pnlAmount >= 0 ? '+' : ''}$${pnlAmount.toLocaleString()}`;
-    } else if (state.tacticalChoice === 'TAIEX_UP' || state.tacticalChoice === 'TAIEX_DOWN') {
-      state.tacticalLog = null; 
-    }
-
-    recordDailyLog();
-
+    state.pendingTacticalChoice = choice;
     state.day++;
-    state.startDayTaiex = state.taiex;
     state.currentEnv = null;
     state.currentMidEnv = null;
     state.afterMarketData = null;
