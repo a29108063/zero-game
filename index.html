@@ -50,7 +50,7 @@
     .btn-danger:hover { background: #d32f2f; }
     .red { color: #ff5252; font-weight: bold; }
     .green { color: #69f0ae; font-weight: bold; }
-    .log-box { background: #111; padding: 10px; border-radius: 4px; font-size: 0.85rem; margin-top: 10px; max-height: 120px; overflow-y: auto; line-height: 1.5; }
+    .log-box { background: #111; padding: 10px; border-radius: 4px; font-size: 0.85rem; margin-top: 10px; max-height: 160px; overflow-y: auto; line-height: 1.6; }
     input[type="text"] { width: 100%; padding: 8px; margin: 8px 0; background: #222; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 0.9rem; }
     
     .content-body { flex: 1; overflow-y: auto; }
@@ -104,7 +104,6 @@
 </div>
 
 <script>
-  // 10 個早盤市場環境
   const environments = [
     { name: '【牛市狂歡】', type: 'up', news: '美股科技股大漲，外資強勢歸隊，台股跳空開高衝刺！' },
     { name: '【熊市反彈】', type: 'down', news: '美股暴跌震盪，台股開盤重挫，散戶恐慌殺出！' },
@@ -118,7 +117,6 @@
     { name: '【長假前拋售潮】', type: 'down', news: '連假將至，丙種資金結算與散戶抱現金過節賣壓湧現，盤中一路走低！' }
   ];
 
-  // 10 個午盤隨機劇本
   const midEnvironments = [
     { name: '【盤中跳水】', type: 'down', news: '午盤獲利了結賣壓湧現，指數急轉直下！' },
     { name: '【拉尾盤訊號】', type: 'up', news: '內資買單強勢拉抬，指數強勢拉升突破當日高點！' },
@@ -132,7 +130,21 @@
     { name: '【黑天鵝傳言爆發】', type: 'down', news: '盤中突發產業利空消息，市場恐慌賣壓蔓延！' }
   ];
 
-  // 隨機散戶背景故事庫
+  const historicalEvents = [
+    { name: "1990 台股萬二泡沫破裂", desc: "全民炒股熱潮過後，證交稅實施引發連環崩盤！" },
+    { name: "1995 台海飛彈危機", desc: "中共試射導彈，市場引發拋售潮與移民撤資！" },
+    { name: "2000 Dot-Com 網際網路泡沫", desc: "科技股一夕崩盤，本夢比幻滅，散戶集體套牢！" },
+    { name: "2003 SARS 傳染病恐慌", desc: "和平醫院封院，股市連續跌停殺盤！" },
+    { name: "2008 雷曼兄弟破產金融海嘯", desc: "次級房貸引爆全球災難，無薪假殺光所有散戶！" },
+    { name: "2020 Covid-19 全球熔斷危機", desc: "疫情爆發石油暴跌，台股跌破萬點後秒殺反彈狂暴大牛市！" },
+    { name: "2022 聯準會暴力升息", desc: "鴿派變鷹派！外資熱錢全面撤資，台股提款機化！" },
+    { name: "2024 AI 狂歡大航海時代", desc: "黃仁勳帶領供應鏈爆發，台股衝破歷史新高！" }
+  ];
+
+  const eventSubjects = ["美國聯準會", "台積電董事會", "神秘外資巨頭", "中東石油大國", "歐盟監管機構", "巴菲特旗下基金", "地緣政治局勢", "矽谷科技巨頭"];
+  const eventActions = ["無預警宣佈降息", "強行併購業界龍頭", "因黑天鵝事件暫停交易", "宣佈全面採用量子晶片", "遭大規模網攻崩潰", "秘密拋售所有台股持股", "無預警發表重大突破"];
+  const eventImpacts = ["造成市場資金極度狂歡！", "引發全球金融鏈劇烈恐慌！", "散戶爆買導致券商軟體塞爆！", "法人空單集體遭嘎到爆倉！", "大盤瞬間震盪上下洗盤 500 點！"];
+
   const storyPool = [
     "家道中落，家裡負債累累，你被迫拿僅存的 100 萬積蓄 ALL IN 股市，希望能鹹魚翻身！",
     "被交往五年的女友嫌棄沒出息狠甩，你決定化悲憤為力量，帶著 100 萬投身台股證明自己！",
@@ -143,19 +155,71 @@
     "背負沉重學貸與家計，你把最後的 100 萬身家壓在台積電供應鏈上，今晚住公園還是帝寶就看這一次！"
   ];
 
-  // 畢業隨機稱號庫
   const gameOverTitles = [
-    '【公園帝寶頂樓戶】',
-    '【北車紙箱國王】',
-    '【龍山寺地墊VIP】',
-    '【乞丐超人現身】',
-    '【山頂套牢榮譽市民】',
-    '【違約交割常勝軍】',
-    '【割韭菜現場遺骸】',
-    '【資產清零藝術家】',
-    '【台股無償獻血志工】',
-    '【滿手套牢阿呆谷谷主】'
+    '【公園帝寶頂樓戶】', '【北車紙箱國王】', '【龍山寺地墊VIP】', '【乞丐超人現身】',
+    '【山頂套牢榮譽市民】', '【違約交割常勝軍】', '【割韭菜現場遺骸】', '【資產清零藝術家】',
+    '【台股無償獻血志工】', '【滿手套牢阿呆谷谷主】'
   ];
+
+  function getRandomChoice(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function generateDynamicEnvironment() {
+    const roll = Math.random();
+    let name = "", news = "";
+
+    if (roll < 0.35) {
+      const ev = getRandomChoice(environments);
+      name = ev.name; news = ev.news;
+    } else if (roll < 0.65) {
+      const ev = getRandomChoice(historicalEvents);
+      name = `【歷史重演 - ${ev.name}】`; news = ev.desc;
+    } else {
+      const sub = getRandomChoice(eventSubjects);
+      const act = getRandomChoice(eventActions);
+      const imp = getRandomChoice(eventImpacts);
+      name = `【突發新聞 - ${sub}${act}】`; news = `${sub}今日${act}，${imp}`;
+    }
+
+    const isUp = Math.random() < 0.5;
+    const pctValue = parseFloat((Math.random() * 4.9 + 0.1).toFixed(1));
+    const sign = isUp ? '+' : '-';
+
+    return {
+      name: name,
+      type: isUp ? 'up' : 'down',
+      news: news,
+      changeRate: isUp ? (pctValue / 100) : (-pctValue / 100),
+      change: `${sign}${pctValue}%`
+    };
+  }
+
+  function generateDynamicMidEnvironment() {
+    const isClassic = Math.random() < 0.5;
+    let name = "", news = "";
+
+    if (isClassic) {
+      const ev = getRandomChoice(midEnvironments);
+      name = ev.name; news = ev.news;
+    } else {
+      const midTitles = ["盤中跳水", "拉尾盤訊號", "外資瘋狂提款", "主力洗盤誘多", "橫盤死寂", "主力鎖漲停", "跌停打開誘空", "當沖客尾盤殺多"];
+      const title = getRandomChoice(midTitles);
+      name = `【午盤 - ${title}】`; news = `盤中市場傳出最新動態，引發 ${title} 趨勢，資金劇烈湧動！`;
+    }
+
+    const isUp = Math.random() < 0.5;
+    const pctValue = parseFloat((Math.random() * 2.9 + 0.1).toFixed(1));
+    const sign = isUp ? '+' : '-';
+
+    return {
+      name: name,
+      type: isUp ? 'up' : 'down',
+      news: news,
+      changeRate: isUp ? (pctValue / 100) : (-pctValue / 100),
+      change: `${sign}${pctValue}%`
+    };
+  }
 
   let state = getInitialState();
 
@@ -166,8 +230,9 @@
       startDayAssets: 1000000,
       hp: 100,
       taiex: 40000,
+      startDayTaiex: 40000,
       phase: 'INIT_STORY',
-      currentStory: storyPool[Math.floor(Math.random() * storyPool.length)],
+      currentStory: getRandomChoice(storyPool),
       playerName: '',
       currentEnv: null,
       currentMidEnv: null,
@@ -176,7 +241,8 @@
       dailyLog: [],
       dayTradeCount: 0,
       currentTab: 'history',
-      assignedGameOverTitle: null
+      assignedGameOverTitle: null,
+      lastHpLog: ''
     };
   }
 
@@ -191,7 +257,7 @@
     
     if (state.assets <= 0 || state.hp <= 0) {
       if (!state.assignedGameOverTitle) {
-        state.assignedGameOverTitle = gameOverTitles[Math.floor(Math.random() * gameOverTitles.length)];
+        state.assignedGameOverTitle = getRandomChoice(gameOverTitles);
       }
       return state.assignedGameOverTitle;
     }
@@ -234,7 +300,7 @@
 
   function updateHUD() {
     document.getElementById('assets').innerText = state.assets.toLocaleString();
-    document.getElementById('hp').innerText = state.hp;
+    document.getElementById('hp').innerText = state.hp.toFixed(1);
     document.getElementById('taiex').innerText = state.taiex.toLocaleString();
     document.getElementById('day').innerText = state.day;
     document.getElementById('title-badge').innerText = calculateTitle();
@@ -269,13 +335,13 @@
             <span>Day ${item.day} ${item.env}</span>
             <span class="${diffColor}">${sign}$${item.profit.toLocaleString()} (${sign}${item.pct}%)</span>
           </div>
+          <div style="color: #aaa;">大盤收盤：${item.taiexEnd.toLocaleString()} 點 (${item.taiexPct})</div>
           <div style="color: #aaa;">期末資產：$${item.endAssets.toLocaleString()}</div>
         </div>
       `;
     }).reverse().join('');
   }
 
-  // ===== Vercel API: 讀取排行榜 =====
   async function renderLeaderboard() {
     const container = document.getElementById('sidebar-content');
     container.innerHTML = `<div style="color:#888;text-align:center;margin-top:20px;">載入全台數據中...</div>`;
@@ -316,7 +382,6 @@
     renderPhase();
   };
 
-  // ===== Vercel API: 上傳成績 =====
   window.submitScore = async function() {
     const scoreData = {
       name: state.playerName || '無名韭菜',
@@ -344,7 +409,22 @@
   }
 
   function renderPhase() {
+    if (state.phase === 'OPEN' && state.timeLeft === 10) {
+      state.currentEnv = generateDynamicEnvironment();
+      state.startDayTaiex = state.taiex;
+      const taiexDiff = Math.round(state.taiex * state.currentEnv.changeRate);
+      state.taiex = state.taiex + taiexDiff;
+      state.startDayAssets = state.assets;
+    }
+
+    if (state.phase === 'MID' && !state.currentMidEnv) {
+      state.currentMidEnv = generateDynamicMidEnvironment();
+      const midDiff = Math.round(state.taiex * state.currentMidEnv.changeRate);
+      state.taiex = state.taiex + midDiff;
+    }
+
     updateHUD();
+
     const area = document.getElementById('content-area');
 
     if (state.phase === 'INIT_STORY') {
@@ -379,24 +459,6 @@
       return;
     }
 
-    if (state.phase === 'OPEN' && state.timeLeft === 10) {
-      const rawEnv = environments[Math.floor(Math.random() * environments.length)];
-      
-      const pctValue = parseFloat((Math.random() * 4.9 + 0.1).toFixed(1));
-      const sign = rawEnv.type === 'up' ? '+' : '-';
-      
-      state.currentEnv = {
-        ...rawEnv,
-        changeRate: rawEnv.type === 'up' ? (pctValue / 100) : (-pctValue / 100),
-        change: `${sign}${pctValue}%`
-      };
-      
-      const taiexDiff = Math.round(state.taiex * state.currentEnv.changeRate);
-      state.taiex = state.taiex + taiexDiff;
-      
-      state.startDayAssets = state.assets;
-    }
-
     const envColorClass = state.currentEnv.type === 'up' ? 'red' : 'green';
 
     if (state.phase === 'OPEN') {
@@ -404,25 +466,15 @@
       area.innerHTML = `
         <div class="market-info">
           <div>📈 市場環境：<b>${state.currentEnv.name}</b></div>
-          <div>今日大盤：<span class="${envColorClass}">${state.currentEnv.change}</span></div>
+          <div>早盤走勢：<span class="${envColorClass}">${state.currentEnv.change}</span></div>
         </div>
         <div class="news">📰 【Day ${state.day} - 09:00 早盤】<br>${state.currentEnv.news}</div>
         <p style="margin: 8px 0;">⚡ 請在 10 秒內做出決策：</p>
-        <button class="btn" onclick="handleChoice('CASH')">🛡️ 現股買進 (勝率 45~55% | 波動 +3~8% / -2~6% | HP -1~5)</button>
-        <button class="btn" onclick="handleChoice('MARGIN')">⚡ 融資開滿 (勝率 35~45% | 波動 +10~20% / -8~16% | HP -5~10)</button>
-        <button class="btn" onclick="handleChoice('DAY_TRADE')">💥 無本當沖 (勝率 20~30% | 波動 +25~50% / -20~45% | HP -12~20)</button>
+        <button class="btn" onclick="handleChoice('CASH')">🛡️ 現股買進 (勝率 45~55% | 波動 +3~8% / -2~6%)</button>
+        <button class="btn" onclick="handleChoice('MARGIN')">⚡ 融資開滿 (勝率 35~45% | 波動 +10~20% / -8~16%)</button>
+        <button class="btn" onclick="handleChoice('DAY_TRADE')">💥 無本當沖 (勝率 20~30% | 波動 +25~50% / -20~45%)</button>
       `;
     } else if (state.phase === 'MID') {
-      if (!state.currentMidEnv) {
-        const rawMid = midEnvironments[Math.floor(Math.random() * midEnvironments.length)];
-        const midPctValue = parseFloat((Math.random() * 2.9 + 0.1).toFixed(1));
-        const midSign = rawMid.type === 'up' ? '+' : '-';
-        state.currentMidEnv = {
-          ...rawMid,
-          change: `${midSign}${midPctValue}%`
-        };
-      }
-
       startTimer(() => handleChoice('PANIC'));
       const midEnvColorClass = state.currentMidEnv.type === 'up' ? 'red' : 'green';
 
@@ -433,39 +485,33 @@
         </div>
         <div class="news">📰 【Day ${state.day} - 11:30 盤中】${state.currentMidEnv.name} - ${state.currentMidEnv.news}</div>
         <p style="margin: 8px 0;">⚡ 請在 10 秒內做出決策：</p>
-        <button class="btn" onclick="handleChoice('HOLD')">🛡️ 硬捏現股 (勝率 30~40% | 波動 +5~12% / -4~10% | HP -6~12)</button>
-        <button class="btn" onclick="handleChoice('TAKE_PROFIT')">🛑 認賠砍倉/落袋為安 (鎖定損益 | HP +5~15)</button>
-        <button class="btn" onclick="handleChoice('DOUBLE_DOWN')">💥 加碼攤平 (勝率 15~25% | 波動 +20~40% / -15~35% | HP -12~22)</button>
+        <button class="btn" onclick="handleChoice('HOLD')">🛡️ 硬捏現股 (勝率 30~40% | 波動 +5~12% / -4~10%)</button>
+        <button class="btn" onclick="handleChoice('TAKE_PROFIT')">🛑 認賠砍倉/落袋為安 (鎖定損益)</button>
+        <button class="btn" onclick="handleChoice('DOUBLE_DOWN')">💥 加碼攤平 (勝率 15~25% | 波動 +20~40% / -15~35%)</button>
       `;
     } else if (state.phase === 'AFTER') {
       stopTimer();
       const profit = state.assets - state.startDayAssets;
       const pct = ((profit / state.startDayAssets) * 100).toFixed(1);
-      
-      if (!state.dailyLog.find(l => l.day === state.day)) {
-        state.dailyLog.push({
-          day: state.day,
-          env: state.currentEnv.name,
-          profit: profit,
-          pct: pct,
-          endAssets: state.assets
-        });
-        if (state.currentTab === 'history') renderHistory();
-      }
-
       const profitColor = profit >= 0 ? 'red' : 'green';
       const sign = profit >= 0 ? '+' : '';
 
+      const taiexDiffTotal = state.taiex - state.startDayTaiex;
+      const taiexPctTotal = ((taiexDiffTotal / state.startDayTaiex) * 100).toFixed(2);
+      const taiexSign = taiexDiffTotal >= 0 ? '+' : '';
+      const taiexColor = taiexDiffTotal >= 0 ? 'red' : 'green';
+
       area.innerHTML = `
-        <h3 style="margin-top:0;">📊 【Day ${state.day} - 13:30 盤後結算報告】</h3>
-        <p style="margin:5px 0;">今日市場已收盤。</p>
+        <h3 style="margin-top:0;">📊 【Day ${state.day} - 13:30 盤後收盤結算】</h3>
+        <p style="margin:5px 0;">今日股市已收盤，大盤、帳面損益與心理 HP 已全部結算。</p>
         <div class="log-box">
           • 散戶代號：<b>${state.playerName}</b> (${calculateTitle()})<br>
-          • 市場總結：${state.currentEnv.name} (大盤: ${state.currentEnv.change})<br>
-          • 今日大盤點數：<b>${state.taiex.toLocaleString()} 點</b><br>
-          • 今日總損益：<span class="${profitColor}">${sign}$${profit.toLocaleString()} (${sign}${pct}%)</span><br>
-          • 當前總資產：$${state.assets.toLocaleString()}<br>
-          • 當前心理 HP：${state.hp}/100
+          • 今日市場事件：${state.currentEnv.name}<br>
+          • 📊 <b>加權指數收盤：</b><b>${state.taiex.toLocaleString()} 點</b> (<span class="${taiexColor}">${taiexSign}${taiexDiffTotal} 點 / ${taiexSign}${taiexPctTotal}%</span>)<br>
+          • 💰 <b>今日個人總損益：</b><span class="${profitColor}">${sign}$${profit.toLocaleString()} (${sign}${pct}%)</span><br>
+          • 💡 <b>HP 結算事件：</b><span style="color:#ffd54f;">${state.lastHpLog}</span><br>
+          • 結算後總資產：<b>$${state.assets.toLocaleString()}</b><br>
+          • 結算後心理 HP：<b>${state.hp.toFixed(1)}%</b>
         </div>
         <button class="btn btn-next" onclick="nextDay()">🛎️ 進入 Day ${state.day + 1} 開盤 (09:00)</button>
       `;
@@ -476,10 +522,8 @@
     stopTimer();
     let win = false;
     let rate = 0;
-    let hpCost = 0;
 
     const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-    const getRandomChoice = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
     if (type === 'PANIC') {
       if (state.phase === 'OPEN') {
@@ -501,42 +545,30 @@
       const winRate = getRandomChoice([0.45, 0.50, 0.55]);
       win = rand < winRate;
       rate = win ? (getRandomInt(3, 8) / 100) : (-getRandomInt(2, 6) / 100);
-      hpCost = getRandomInt(1, 5);
 
     } else if (type === 'MARGIN') {
       const winRate = getRandomChoice([0.35, 0.40, 0.45]);
       win = rand < winRate;
       rate = win ? (getRandomInt(10, 20) / 100) : (-getRandomInt(8, 16) / 100);
-      hpCost = getRandomInt(5, 10);
 
     } else if (type === 'DAY_TRADE') {
       const winRate = getRandomChoice([0.20, 0.25, 0.30]);
       win = rand < winRate;
       rate = win ? (getRandomInt(25, 50) / 100) : (-getRandomInt(20, 45) / 100);
-      hpCost = getRandomInt(12, 20);
       state.dayTradeCount++;
 
     } else if (type === 'HOLD') {
       const winRate = getRandomChoice([0.30, 0.35, 0.40]);
       win = rand < winRate;
       rate = win ? (getRandomInt(5, 12) / 100) : (-getRandomInt(4, 10) / 100);
-      hpCost = getRandomInt(6, 12);
 
     } else if (type === 'TAKE_PROFIT') {
       rate = 0;
-      const hpRecovery = getRandomInt(5, 15);
-      state.hp = Math.min(100, state.hp + hpRecovery);
-      hpCost = 0;
 
     } else if (type === 'DOUBLE_DOWN') {
       const winRate = getRandomChoice([0.15, 0.20, 0.25]);
       win = rand < winRate;
       rate = win ? (getRandomInt(20, 40) / 100) : (-getRandomInt(15, 35) / 100);
-      hpCost = getRandomInt(12, 22);
-    }
-
-    if (hpCost > 0) {
-      state.hp = Math.max(0, state.hp - hpCost);
     }
 
     state.assets = Math.round(state.assets * (1 + rate));
@@ -544,6 +576,64 @@
     if (state.phase === 'OPEN') {
       state.phase = 'MID';
     } else if (state.phase === 'MID') {
+      const profit = state.assets - state.startDayAssets;
+      const pct = ((profit / state.startDayAssets) * 100).toFixed(1);
+      
+      // ===== 🎯 優化後的權重亂數 HP 計算機制 =====
+      const absPnlPct = Math.abs(profit / state.startDayAssets) * 100; // 例如 6.8%
+      
+      if (absPnlPct === 0) {
+        state.lastHpLog = `【波瀾不驚】今日損益平盤，心情毫無波折，HP 保持不變。`;
+      } else {
+        // 第一層：根據「賺錢」或「賠錢」給予不同的正負方向機率 (80% 符合常理, 20% 觸發反常心態)
+        let isPositiveEffect = false;
+        if (profit < 0) {
+          // 賠錢時：80% 扣血(痛苦)，20% 加血(阿Q精神)
+          isPositiveEffect = Math.random() < 0.2; 
+        } else {
+          // 賺錢時：80% 加血(開心)，20% 扣血(賣早心痛)
+          isPositiveEffect = Math.random() < 0.8;
+        }
+        
+        // 第二層：亂數生成%數 (範圍在 損益幅度/2 ~ 損益全額 之間)
+        const minPct = absPnlPct / 2; // 例如 3.4%
+        const maxPct = absPnlPct;     // 例如 6.8%
+        const finalHpDeltaPct = Math.random() * (maxPct - minPct) + minPct; // 3.4% ~ 6.8%
+        const hpDeltaDisplay = finalHpDeltaPct.toFixed(1);
+
+        if (isPositiveEffect) {
+          state.hp = Math.min(100, state.hp + finalHpDeltaPct);
+          if (profit < 0) {
+            state.lastHpLog = `【精神勝利】今日雖虧損 ${Math.abs(pct)}%，但你堅信沒賣就不算虧，發揮阿Q精神！HP 回復 +${hpDeltaDisplay}%！`;
+          } else {
+            state.lastHpLog = `【利多大補】今日賺取 ${pct}%，口袋滿滿讓你身心舒暢！HP 大幅回復 +${hpDeltaDisplay}%！`;
+          }
+        } else {
+          state.hp = Math.max(0, state.hp - finalHpDeltaPct);
+          if (profit < 0) {
+            state.lastHpLog = `【韭菜慘叫】今日虧損 ${Math.abs(pct)}%，看著帳面出血讓你心臟受不了！HP 扣除 -${hpDeltaDisplay}%！`;
+          } else {
+            state.lastHpLog = `【賣早心痛】今日雖獲利 ${pct}%，但想到隔壁老王賺更多、自己賣早了！HP 痛苦扣除 -${hpDeltaDisplay}%！`;
+          }
+        }
+      }
+
+      const taiexDiffTotal = state.taiex - state.startDayTaiex;
+      const taiexPctTotal = ((taiexDiffTotal / state.startDayTaiex) * 100).toFixed(2);
+      const taiexSign = taiexDiffTotal >= 0 ? '+' : '';
+
+      state.dailyLog.push({
+        day: state.day,
+        env: state.currentEnv.name,
+        profit: profit,
+        pct: pct,
+        endAssets: state.assets,
+        taiexEnd: state.taiex,
+        taiexPct: `${taiexSign}${taiexPctTotal}%`
+      });
+
+      if (state.currentTab === 'history') renderHistory();
+
       state.phase = 'AFTER';
     }
 
