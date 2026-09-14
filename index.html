@@ -46,7 +46,12 @@
     .news { background: #252526; border-left: 4px solid #00e676; padding: 10px; margin-bottom: 12px; font-size: 0.9rem; line-height: 1.4; }
     .story-box { background: #2a1b1b; border: 1px dashed #ff5252; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.5; color: #ffccbc; }
     .dividend-box { background: #1b2a1b; border: 1px dashed #00e676; padding: 10px; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; color: #a5d6a7; }
-    
+    .settlement-card { background: #222430; border: 1px solid #44475a; padding: 12px; border-radius: 6px; margin-bottom: 12px; }
+    .settlement-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; font-size: 0.9rem; }
+    .settlement-item { background: #181920; padding: 8px; border-radius: 4px; }
+    .settlement-item .label { color: #aaa; font-size: 0.8rem; margin-bottom: 4px; }
+    .settlement-item .val { font-weight: bold; font-size: 1rem; }
+
     .btn { display: block; width: 100%; padding: 11px; margin: 6px 0; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; cursor: pointer; text-align: left; font-size: 0.88rem; transition: background 0.2s; line-height: 1.4; }
     .btn:hover { background: #444; border-color: #888; }
     .btn-next { background: #2e7d32; text-align: center; font-weight: bold; font-size: 1.05rem; margin-top: 12px; border-color: #388e3c; }
@@ -65,6 +70,7 @@
       .sidebar { width: 100%; height: 300px; }
       .terminal { height: auto; min-height: 500px; }
       .global-market-grid { grid-template-columns: 1fr; }
+      .settlement-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -187,6 +193,7 @@
 
   function getRandomChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
   function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+  function getRandomFloat(min, max, decimals = 1) { return parseFloat((Math.random() * (max - min) + min).toFixed(decimals)); }
 
   function generateDynamicEnvironment() {
     const randPool = Math.random();
@@ -255,6 +262,7 @@
       startDayAssets: 1000000,
       shares: 0,
       hp: 100,
+      startDayHp: 100,
       taiex: 40000,
       startDayTaiex: 40000,
       openTaiexOffset: 0,
@@ -274,7 +282,8 @@
       assignedGameOverTitle: null,
       lastHpLog: '',
       lastFeeCost: 0,
-      lastDividendInfo: null
+      lastDividendInfo: null,
+      lastHpChange: 0
     };
   }
 
@@ -299,6 +308,29 @@
     if (state.day >= 10) return '【資深股市生還者】';
     if (profitRate < 0) return '【韭菜熟成中】';
     return '【台股新星散戶】';
+  }
+
+  // 動態勝率估算函式
+  function getEstimatedWinRate(type) {
+    let baseWin = 50;
+    const envType = state.currentEnv ? state.currentEnv.type : 'up';
+
+    if (type === 'CASH') baseWin = envType === 'up' ? 55 : 42;
+    else if (type === 'MARGIN') baseWin = envType === 'up' ? 48 : 32;
+    else if (type === 'DAY_TRADE') baseWin = envType === 'up' ? 35 : 22;
+    else if (type === 'HOLD') baseWin = envType === 'up' ? 45 : 30;
+    else if (type === 'TAKE_PROFIT') baseWin = 100;
+    else if (type === 'DOUBLE_DOWN') baseWin = envType === 'up' ? 28 : 15;
+    else if (type === 'TAIEX_UP') baseWin = 50;
+    else if (type === 'TAIEX_DOWN') baseWin = 50;
+    else if (type === 'HEDGE_GOLD_USD') baseWin = 65;
+    else if (type === 'HEDGE_BTC') baseWin = 40;
+
+    // 根據 HP 狀況微調勝率 (HP 低於 50 決策能力下降)
+    if (state.hp < 50 && type !== 'TAKE_PROFIT') {
+      baseWin = Math.max(10, baseWin - Math.round((50 - state.hp) * 0.2));
+    }
+    return baseWin;
   }
 
   function startTimer(seconds, onTimeout) {
@@ -326,9 +358,9 @@
   }
 
   function updateHUD() {
-    document.getElementById('assets').innerText = state.assets.toLocaleString();
+    document.getElementById('assets').innerText = Math.max(0, state.assets).toLocaleString();
     document.getElementById('shares').innerText = state.shares.toLocaleString();
-    document.getElementById('hp').innerText = state.hp.toFixed(1);
+    document.getElementById('hp').innerText = Math.max(0, state.hp).toFixed(1);
     document.getElementById('day').innerText = state.day;
     document.getElementById('title-badge').innerText = calculateTitle();
 
@@ -458,7 +490,7 @@
 
     alert(isRemoteSuccess ? '🎉 成功登錄全台雲端排行榜！' : '🎉 成績已成功登錄至本地排行榜！');
     switchTab('leaderboard');
-  }
+  };
 
   function checkDividendPayout() {
     // 隨機發放機制：每日結算時有 20% 機率突發除息發放股利
@@ -468,19 +500,146 @@
       if (state.shares > 0) {
         const totalDividend = Math.round(state.shares * dividendPerShare);
         state.assets += totalDividend;
+        
+        // 股利發放動態增益：根據金額與當前 HP 亂數抽樣回復 HP
+        let hpGain = 0;
+        if (state.hp < 100) {
+          const baseRatio = Math.min(totalDividend / 50000, 1.0);
+          hpGain = getRandomFloat(2.0, 8.0, 1) * (1 + baseRatio);
+          hpGain = Math.min(hpGain, 100 - state.hp);
+          state.hp = Math.min(100, state.hp + hpGain);
+        }
+
         state.lastDividendInfo = {
           perShare: dividendPerShare,
           totalDividend: totalDividend,
-          missed: false
+          missed: false,
+          hpGain: parseFloat(hpGain.toFixed(1))
         };
       } else {
         state.lastDividendInfo = {
           perShare: dividendPerShare,
           totalDividend: 0,
-          missed: true
+          missed: true,
+          hpGain: 0
         };
       }
     }
+  }
+
+  function handleChoice(actionType) {
+    stopTimer();
+    const env = state.phase === 'OPEN' ? state.currentEnv : state.currentMidEnv;
+    const isUpEnv = env.type === 'up';
+    let pnlRate = 0;
+    let feeRate = 0;
+    let hpImpact = 0;
+
+    if (actionType === 'CASH') {
+      const win = Math.random() < (isUpEnv ? 0.55 : 0.42);
+      pnlRate = win ? getRandomFloat(0.03, 0.08, 3) : -getRandomFloat(0.02, 0.06, 3);
+      feeRate = 0.0044;
+      state.shares = Math.floor((state.assets * 0.8) / (state.taiex / 1000));
+    } else if (actionType === 'MARGIN') {
+      const win = Math.random() < (isUpEnv ? 0.48 : 0.32);
+      pnlRate = win ? getRandomFloat(0.10, 0.20, 3) : -getRandomFloat(0.08, 0.16, 3);
+      feeRate = 0.0060;
+      state.shares = Math.floor((state.assets * 2.0) / (state.taiex / 1000));
+    } else if (actionType === 'DAY_TRADE') {
+      state.dayTradeCount++;
+      const win = Math.random() < (isUpEnv ? 0.35 : 0.22);
+      pnlRate = win ? getRandomFloat(0.25, 0.50, 3) : -getRandomFloat(0.20, 0.45, 3);
+      feeRate = 0.0029;
+      state.shares = 0; // 不留倉
+    } else if (actionType === 'PANIC') {
+      pnlRate = -getRandomFloat(0.05, 0.12, 3);
+      hpImpact = -15;
+    } else if (actionType === 'HOLD') {
+      const win = Math.random() < (isUpEnv ? 0.45 : 0.30);
+      pnlRate = win ? getRandomFloat(0.05, 0.12, 3) : -getRandomFloat(0.04, 0.10, 3);
+    } else if (actionType === 'TAKE_PROFIT') {
+      const cutRatio = getRandomFloat(0.3, 0.8, 2);
+      state.shares = Math.floor(state.shares * (1 - cutRatio));
+      pnlRate = -0.01; // 虧損鎖定停損成本
+      hpImpact = 5; // 心理鬆一口氣，回復微量 HP
+    } else if (actionType === 'DOUBLE_DOWN') {
+      const win = Math.random() < (isUpEnv ? 0.28 : 0.15);
+      pnlRate = win ? getRandomFloat(0.20, 0.40, 3) : -getRandomFloat(0.15, 0.35, 3);
+      feeRate = 0.0044;
+      state.shares *= 2;
+    }
+
+    const feeCost = Math.round(state.assets * feeRate);
+    const pnlAmount = Math.round(state.assets * pnlRate) - feeCost;
+    state.assets += pnlAmount;
+    state.lastFeeCost += feeCost;
+
+    // HP 動態算式增減
+    if (pnlAmount < 0) {
+      hpImpact += Math.max(-25, Math.floor(pnlAmount / 30000));
+    } else {
+      hpImpact += Math.min(15, Math.floor(pnlAmount / 40000));
+    }
+    state.hp = Math.max(0, Math.min(100, state.hp + hpImpact));
+
+    if (state.phase === 'OPEN') {
+      state.phase = 'MID';
+    } else if (state.phase === 'MID') {
+      state.phase = 'AFTER';
+    }
+    renderPhase();
+  }
+
+  function handleTacticalChoice(choice) {
+    state.pendingTacticalChoice = choice;
+    let hpDelta = 0;
+
+    if (choice === 'TAIEX_UP' || choice === 'TAIEX_DOWN') {
+      state.todayTacticalLog = `擬定戰術：預測明日大盤【${choice === 'TAIEX_UP' ? '看漲' : '看跌'}】`;
+    } else if (choice === 'HEDGE_GOLD_USD') {
+      // 戰術擬定邏輯修正（黃金/美元）：收益率範圍修正為 ±0.5% ~ ±1.5%
+      const win = Math.random() < 0.65;
+      const rate = win ? getRandomFloat(0.005, 0.015, 4) : -getRandomFloat(0.005, 0.015, 4);
+      const pnlAmount = Math.round(state.assets * rate);
+      state.assets += pnlAmount;
+
+      // 動態生成 HP 扣減或恢復量
+      if (pnlAmount >= 0) {
+        hpDelta = getRandomFloat(2.0, 6.0, 1);
+      } else {
+        hpDelta = -getRandomFloat(3.0, 8.0, 1);
+      }
+      state.hp = Math.max(0, Math.min(100, state.hp + hpDelta));
+      const pnlSign = pnlAmount >= 0 ? '+' : '';
+      const hpSign = hpDelta >= 0 ? '+' : '';
+      state.todayTacticalLog = `🛡️ 黃金/美元避險操作，資產 ${pnlSign}$${pnlAmount.toLocaleString()}，HP ${hpSign}${hpDelta.toFixed(1)}%`;
+    } else if (choice === 'HEDGE_BTC') {
+      const btcWin = Math.random() < 0.40;
+      const btcPnlPct = btcWin ? getRandomFloat(0.03, 0.10, 3) : -getRandomFloat(0.03, 0.10, 3);
+      const pnlAmount = Math.round(state.assets * btcPnlPct);
+      state.assets += pnlAmount;
+
+      if (pnlAmount >= 0) {
+        hpDelta = getRandomFloat(5.0, 12.0, 1);
+      } else {
+        hpDelta = -getRandomFloat(8.0, 18.0, 1);
+      }
+      state.hp = Math.max(0, Math.min(100, state.hp + hpDelta));
+      const pnlSign = pnlAmount >= 0 ? '+' : '';
+      const hpSign = hpDelta >= 0 ? '+' : '';
+      state.todayTacticalLog = `⚡ BTC 高風險避險 ${btcWin ? '爆賺🎯' : '爆倉❌'}，資產 ${pnlSign}$${pnlAmount.toLocaleString()}，HP ${hpSign}${hpDelta.toFixed(1)}%`;
+    }
+
+    // 推進至下一天
+    state.day++;
+    state.phase = 'OPEN';
+    state.currentEnv = null;
+    state.currentMidEnv = null;
+    state.afterMarketData = null;
+    state.startDayTaiex = state.taiex;
+    state.startDayAssets = state.assets;
+    state.startDayHp = state.hp;
+    renderPhase();
   }
 
   function recordDailyLog() {
@@ -519,7 +678,6 @@
       if (!state.currentEnv) {
         state.currentEnv = generateDynamicEnvironment();
         
-        state.todayTacticalLog = null;
         if (state.pendingTacticalChoice) {
           const choice = state.pendingTacticalChoice;
           state.pendingTacticalChoice = null;
@@ -531,20 +689,13 @@
             const pnlPct = isWin ? (getRandomInt(3, 8) / 100) : (-getRandomInt(3, 8) / 100);
             const pnlAmount = Math.round(state.assets * pnlPct);
             state.assets += pnlAmount;
+
+            const hpChange = isWin ? getRandomFloat(3, 8, 1) : -getRandomFloat(5, 12, 1);
+            state.hp = Math.max(0, Math.min(100, state.hp + hpChange));
+
             const pnlSign = pnlAmount >= 0 ? '+' : '';
-            state.todayTacticalLog = `預測大盤【${predictedUp?'看漲':'看跌'}】${isWin?'成功🎯':'失敗❌'}，資產 ${pnlSign}$${pnlAmount.toLocaleString()}`;
-          } else if (choice === 'HEDGE_GOLD_USD') {
-            const hPnlPct = getRandomInt(5, 15) / 1000;
-            const pnlAmount = Math.round(state.assets * hPnlPct);
-            state.assets += pnlAmount;
-            state.todayTacticalLog = `🛡️ 黃金/美元避險成功，資產 +$${pnlAmount.toLocaleString()}`;
-          } else if (choice === 'HEDGE_BTC') {
-            const btcWin = Math.random() < 0.5;
-            const btcPnlPct = btcWin ? (getRandomInt(3, 10) / 100) : (-getRandomInt(3, 10) / 100);
-            const pnlAmount = Math.round(state.assets * btcPnlPct);
-            state.assets += pnlAmount;
-            const pnlSign = pnlAmount >= 0 ? '+' : '';
-            state.todayTacticalLog = `⚡ BTC 避險${btcWin ? '爆賺🎯' : '爆倉❌'}，資產 ${pnlSign}$${pnlAmount.toLocaleString()}`;
+            const hpSign = hpChange >= 0 ? '+' : '';
+            state.todayTacticalLog = `預測大盤【${predictedUp?'看漲':'看跌'}】${isWin?'成功🎯':'失敗❌'}，資產 ${pnlSign}$${pnlAmount.toLocaleString()}，HP ${hpSign}${hpChange.toFixed(1)}%`;
           }
         }
         
@@ -553,6 +704,7 @@
         state.taiex = state.startDayTaiex + state.openTaiexOffset;
         
         state.startDayAssets = state.assets;
+        state.startDayHp = state.hp;
         state.lastFeeCost = 0;
         state.lastDividendInfo = null;
       }
@@ -612,6 +764,11 @@
 
     if (state.phase === 'OPEN') {
       startTimer(10, () => handleChoice('PANIC'));
+      
+      const cashWin = getEstimatedWinRate('CASH');
+      const marginWin = getEstimatedWinRate('MARGIN');
+      const dayTradeWin = getEstimatedWinRate('DAY_TRADE');
+
       area.innerHTML = `
         ${state.todayTacticalLog ? `<div class="dividend-box"><b>💡 昨夜盤後戰術開盤結算：</b><br>${state.todayTacticalLog}</div>` : ''}
         
@@ -621,13 +778,17 @@
         </div>
         <div class="news">📰 【Day ${state.day} - 09:00 早盤】<br>${state.currentEnv.news}</div>
         <p style="margin: 8px 0;">⚡ 請在 10 秒內做出決策：</p>
-        <button class="btn" onclick="handleChoice('CASH')">🛡️ 現股買進<br><small style="color:#bbb;">勝率 45~55% | 波動 +3~8% / -2~6% | 稅費 0.44% | 自動換算持股</small></button>
-        <button class="btn" onclick="handleChoice('MARGIN')">⚡ 融資開滿<br><small style="color:#bbb;">勝率 35~45% | 波動 +10~20% / -8~16% | 稅費+利息 0.60% | 槓桿放大持股</small></button>
-        <button class="btn" onclick="handleChoice('DAY_TRADE')">💥 無本當沖<br><small style="color:#bbb;">勝率 20~30% | 波動 +25~50% / -20~45% | 當沖降稅 0.29% | 不留倉</small></button>
+        <button class="btn" onclick="handleChoice('CASH')">🛡️ 現股買進 <span style="color:#ffd54f;">[預估勝率 ${cashWin}%]</span><br><small style="color:#bbb;">波動 +3~8% / -2~6% | 稅費 0.44% | 自動換算持股</small></button>
+        <button class="btn" onclick="handleChoice('MARGIN')">⚡ 融資開滿 <span style="color:#ffd54f;">[預估勝率 ${marginWin}%]</span><br><small style="color:#bbb;">波動 +10~20% / -8~16% | 稅費+利息 0.60% | 槓桿放大持股</small></button>
+        <button class="btn" onclick="handleChoice('DAY_TRADE')">💥 無本當沖 <span style="color:#ffd54f;">[預估勝率 ${dayTradeWin}%]</span><br><small style="color:#bbb;">波動 +25~50% / -20~45% | 當沖降稅 0.29% | 不留倉</small></button>
       `;
     } else if (state.phase === 'MID') {
       startTimer(10, () => handleChoice('PANIC'));
       const midEnvColorClass = state.currentMidEnv.type === 'up' ? 'red' : 'green';
+
+      const holdWin = getEstimatedWinRate('HOLD');
+      const cutWin = getEstimatedWinRate('TAKE_PROFIT');
+      const doubleWin = getEstimatedWinRate('DOUBLE_DOWN');
 
       area.innerHTML = `
         <div class="market-info">
@@ -636,9 +797,9 @@
         </div>
         <div class="news">📰 【Day ${state.day} - 11:30 盤中】${state.currentMidEnv.name} - ${state.currentMidEnv.news}</div>
         <p style="margin: 8px 0;">⚡ 請在 10 秒內做出決策：</p>
-        <button class="btn" onclick="handleChoice('HOLD')">🛡️ 硬捏現股 (現有持股：${state.shares.toLocaleString()} 股)<br><small style="color:#bbb;">勝率 30~40% | 波動 +5~12% / -4~10% | 無額外稅費</small></button>
-        <button class="btn" onclick="handleChoice('TAKE_PROFIT')">🛑 認賠砍倉 / 部分停損 (隨機砍掉 30%~80% 持股)<br><small style="color:#bbb;">勝率 100% | 保留部分部位繼續凹單</small></button>
-        <button class="btn" onclick="handleChoice('DOUBLE_DOWN')">💥 加碼攤平 (持股加倍)<br><small style="color:#bbb;">勝率 15~25% | 波動 +20~40% / -15~35% | 二次稅費 0.44%</small></button>
+        <button class="btn" onclick="handleChoice('HOLD')">🛡️ 硬捏現股 (持股：${state.shares.toLocaleString()} 股) <span style="color:#ffd54f;">[預估勝率 ${holdWin}%]</span><br><small style="color:#bbb;">波動 +5~12% / -4~10% | 無額外稅費</small></button>
+        <button class="btn" onclick="handleChoice('TAKE_PROFIT')">🛑 認賠砍倉 / 部分停損 <span style="color:#ffd54f;">[預估勝率 ${cutWin}%]</span><br><small style="color:#bbb;">隨機砍掉 30%~80% 持股 | 回復微量 HP</small></button>
+        <button class="btn" onclick="handleChoice('DOUBLE_DOWN')">💥 加碼攤平 (持股加倍) <span style="color:#ffd54f;">[預估勝率 ${doubleWin}%]</span><br><small style="color:#bbb;">波動 +20~40% / -15~35% | 二次稅費 0.44%</small></button>
       `;
     } else if (state.phase === 'AFTER') {
       stopTimer();
@@ -653,19 +814,45 @@
       const taiexSign = taiexDiffTotal >= 0 ? '+' : '';
       const taiexColor = taiexDiffTotal >= 0 ? 'red' : 'green';
 
+      const hpDiff = state.hp - state.startDayHp;
+      const hpSign = hpDiff >= 0 ? '+' : '';
+      const hpColor = hpDiff >= 0 ? 'green' : 'red';
+
       const d = state.afterMarketData;
 
       let dividendMsg = '';
       if (state.lastDividendInfo) {
         if (!state.lastDividendInfo.missed) {
-          dividendMsg = `<div class="dividend-box">🎁 <b>突發除息利多！</b>配發每股 <b>$${state.lastDividendInfo.perShare}</b> 元，共入帳 <b style="color:#69f0ae;">+$${state.lastDividendInfo.totalDividend.toLocaleString()}</b> 元現金股利！</div>`;
+          dividendMsg = `<div class="dividend-box">🎁 <b>突發除息利多！</b>配發每股 <b>$${state.lastDividendInfo.perShare}</b> 元，共入帳 <b style="color:#69f0ae;">+$${state.lastDividendInfo.totalDividend.toLocaleString()}</b> 元現金股利！${state.lastDividendInfo.hpGain > 0 ? `<br>✨ 心理獲得安撫，HP 恢復 <b style="color:#69f0ae;">+${state.lastDividendInfo.hpGain}%</b>！` : ''}</div>`;
         } else {
           dividendMsg = `<div class="dividend-box" style="background:#2a251b; border-color:#ffb74d; color:#ffe082;">⚠️ <b>突發除息事件：</b>今日配發每股 <b>$${state.lastDividendInfo.perShare}</b> 元，但因手頭無持股錯過領股利機會！</div>`;
         }
       }
 
+      const upWin = getEstimatedWinRate('TAIEX_UP');
+      const downWin = getEstimatedWinRate('TAIEX_DOWN');
+      const goldWin = getEstimatedWinRate('HEDGE_GOLD_USD');
+      const btcWin = getEstimatedWinRate('HEDGE_BTC');
+
       area.innerHTML = `
-        <h3 style="margin-top:0; margin-bottom: 8px;">📊 【Day ${state.day} - 13:30 盤後每日對帳單與戰術擬定】</h3>
+        <h3 style="margin-top:0; margin-bottom: 8px;">📊 【Day ${state.day} - 13:30 盤後完整數據結算】</h3>
+
+        <div class="settlement-card">
+          <div class="settlement-grid">
+            <div class="settlement-item">
+              <div class="label">💼 個人總資產</div>
+              <div class="val ${profitColor}">$${state.assets.toLocaleString()}<br><small>(${sign}$${profit.toLocaleString()} / ${sign}${pct}%)</small></div>
+            </div>
+            <div class="settlement-item">
+              <div class="label">📈 大盤加權指數</div>
+              <div class="val ${taiexColor}">${state.taiex.toLocaleString()}<br><small>(${taiexSign}${taiexDiffTotal} / ${taiexSign}${taiexPctTotal}%)</small></div>
+            </div>
+            <div class="settlement-item">
+              <div class="label">🧠 精神 HP 狀態</div>
+              <div class="val ${hpColor}">${state.hp.toFixed(1)}%<br><small>(${hpSign}${hpDiff.toFixed(1)}%)</small></div>
+            </div>
+          </div>
+        </div>
 
         ${dividendMsg}
 
@@ -694,106 +881,18 @@
 
         <p style="margin:5px 0; font-weight:bold; color:#ffd54f;">🎯 盤後戰術擬定（選擇後即刻進入下一天）：</p>
         <div style="display:flex; gap:8px; margin-bottom:8px;">
-          <button class="btn" style="flex:1; margin:0; text-align:center;" onclick="handleTacticalChoice('TAIEX_UP')">📈 預測明日台股開盤看漲<br><small style="color:#bbb;">綁定明日開盤漲跌對決</small></button>
-          <button class="btn" style="flex:1; margin:0; text-align:center;" onclick="handleTacticalChoice('TAIEX_DOWN')">📉 預測明日台股開盤看跌<br><small style="color:#bbb;">綁定明日開盤漲跌對決</small></button>
+          <button class="btn" style="flex:1; margin:0; text-align:center;" onclick="handleTacticalChoice('TAIEX_UP')">📈 預測明日台股開盤看漲<br><small style="color:#ffd54f;">勝率預估 ${upWin}%</small></button>
+          <button class="btn" style="flex:1; margin:0; text-align:center;" onclick="handleTacticalChoice('TAIEX_DOWN')">📉 預測明日台股開盤看跌<br><small style="color:#ffd54f;">勝率預估 ${downWin}%</small></button>
         </div>
         <div style="display:flex; gap:8px;">
-          <button class="btn" style="flex:1; margin:0; text-align:center;" onclick="handleTacticalChoice('HEDGE_GOLD_USD')">🛡️ 隔夜避險：黃金/美元<br><small style="color:#bbb;">隔夜避險小幅收益</small></button>
-          <button class="btn" style="flex:1; margin:0; text-align:center;" onclick="handleTacticalChoice('HEDGE_BTC')">⚡ 隔夜避險：數位貨幣 BTC<br><small style="color:#bbb;">隔夜避險高波動收益</small></button>
-        </div>
-
-        <div class="log-box" style="margin-top:10px;">
-          • 今日個人總損益：<span class="${profitColor}">${sign}$${profit.toLocaleString()} (${sign}${pct}%)</span> | 大盤收盤：<span class="${taiexColor}">${state.taiex.toLocaleString()} 點 (${taiexSign}${taiexPctTotal}%)</span><br>
-          • 💡 HP 狀態：<span style="color:#ffd54f;">${state.lastHpLog}</span>
+          <button class="btn" style="flex:1; margin:0; text-align:center;" onclick="handleTacticalChoice('HEDGE_GOLD_USD')">🛡️ 黃金/美元穩健避險<br><small style="color:#ffd54f;">勝率預估 ${goldWin}% | 收益 ±0.5%~1.5%</small></button>
+          <button class="btn" style="flex:1; margin:0; text-align:center;" onclick="handleTacticalChoice('HEDGE_BTC')">⚡ BTC 開槓桿高風險避險<br><small style="color:#ffd54f;">勝率預估 ${btcWin}% | 收益 ±3.0%~10.0%</small></button>
         </div>
       `;
     }
   }
 
-  window.handleChoice = function(type) {
-    stopTimer();
-    let win = false;
-    let rate = 0;
-    let feeRate = 0;
-
-    if (type === 'PANIC') {
-      if (state.phase === 'OPEN') {
-        type = getRandomChoice(['CASH', 'MARGIN', 'DAY_TRADE']);
-      } else if (state.phase === 'MID') {
-        type = getRandomChoice(['HOLD', 'TAKE_PROFIT', 'DOUBLE_DOWN']);
-      }
-    }
-
-    const rand = Math.random();
-
-    if (type === 'CASH') {
-      win = rand < 0.50;
-      rate = win ? getRandomInt(3, 8) / 100 : -getRandomInt(2, 6) / 100;
-      feeRate = 0.0044;
-      state.shares = Math.floor((state.assets * 0.95) / (state.taiex / 1000));
-    } else if (type === 'MARGIN') {
-      win = rand < 0.40;
-      rate = win ? getRandomInt(10, 20) / 100 : -getRandomInt(8, 16) / 100;
-      feeRate = 0.0060;
-      state.shares = Math.floor((state.assets * 2.2) / (state.taiex / 1000));
-    } else if (type === 'DAY_TRADE') {
-      win = rand < 0.25;
-      rate = win ? getRandomInt(25, 50) / 100 : -getRandomInt(20, 45) / 100;
-      feeRate = 0.0029;
-      state.dayTradeCount++;
-      state.shares = 0;
-    } else if (type === 'HOLD') {
-      win = rand < 0.35;
-      rate = win ? getRandomInt(5, 12) / 100 : -getRandomInt(4, 10) / 100;
-      feeRate = 0;
-    } else if (type === 'TAKE_PROFIT') {
-      win = true;
-      rate = -getRandomInt(1, 4) / 100;
-      feeRate = 0.0020;
-      const cutRatio = (getRandomInt(30, 80) / 100);
-      state.shares = Math.floor(state.shares * (1 - cutRatio));
-    } else if (type === 'DOUBLE_DOWN') {
-      win = rand < 0.20;
-      rate = win ? getRandomInt(20, 40) / 100 : -getRandomInt(15, 35) / 100;
-      feeRate = 0.0044;
-      state.shares = state.shares * 2;
-    }
-
-    const pnl = Math.round(state.assets * rate);
-    const feeCost = Math.round(state.assets * feeRate);
-    state.lastFeeCost += feeCost;
-    state.assets = Math.max(0, state.assets + pnl - feeCost);
-
-    let hpLoss = 0;
-    if (pnl < 0) {
-      hpLoss = Math.min(30, Math.abs(rate * 100) * 1.2);
-      state.hp = Math.max(0, state.hp - hpLoss);
-      state.lastHpLog = `虧損導致心態崩潰，HP -${hpLoss.toFixed(1)}%`;
-    } else {
-      const hpGain = Math.min(15, (rate * 100) * 0.8);
-      state.hp = Math.min(100, state.hp + hpGain);
-      state.lastHpLog = `獲利信心大增，HP +${hpGain.toFixed(1)}%`;
-    }
-
-    if (state.phase === 'OPEN') {
-      state.phase = 'MID';
-    } else if (state.phase === 'MID') {
-      state.phase = 'AFTER';
-    }
-    renderPhase();
-  };
-
-  window.handleTacticalChoice = function(choice) {
-    state.pendingTacticalChoice = choice;
-    state.day++;
-    state.phase = 'OPEN';
-    state.currentEnv = null;
-    state.currentMidEnv = null;
-    state.afterMarketData = null;
-    renderPhase();
-  };
-
-  // 初始化啟動畫面
+  // 初始化遊戲畫面
   renderPhase();
 </script>
 </body>
