@@ -641,7 +641,7 @@
       const win = Math.random() < (isUpEnv ? 0.60 : 0.35);
       pnlRate = win ? getRandomFloat(0.02, 0.05, 3) : -getRandomFloat(0.02, 0.05, 3);
       feeRate = 0.001425;
-      state.shares = Math.floor((state.assets * 0.8) / (state.taiex / 1000));
+      state.shares = Math.floor((state.assets * 0.7) / (state.taiex / 1000));
     } else if (actionType === 'MARGIN') {
       const win = Math.random() < (isUpEnv ? 0.55 : 0.25);
       pnlRate = win ? getRandomFloat(0.10, 0.25, 3) : -getRandomFloat(0.10, 0.25, 3);
@@ -666,7 +666,7 @@
       pnlRate = win ? getRandomFloat(0.15, 0.35, 3) : -getRandomFloat(0.20, 0.35, 3);
       feeRate = 0.0044;
       state.shares = state.shares === 0 
-        ? Math.floor((state.assets * 0.5) / (state.taiex / 1000))
+        ? Math.floor((state.assets * 0.7) / (state.taiex / 1000))
         : state.shares * 2;
     }
 
