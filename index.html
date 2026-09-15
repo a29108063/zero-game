@@ -638,33 +638,36 @@
     let feeRate = 0;
 
     if (actionType === 'CASH') {
-      const win = Math.random() < (isUpEnv ? 0.65 : 0.35);
+      const win = Math.random() < (isUpEnv ? 0.60 : 0.35);
       pnlRate = win ? getRandomFloat(0.02, 0.05, 3) : -getRandomFloat(0.02, 0.05, 3);
       feeRate = 0.001425;
       state.shares = Math.floor((state.assets * 0.8) / (state.taiex / 1000));
     } else if (actionType === 'MARGIN') {
-      const win = Math.random() < (isUpEnv ? 0.60 : 0.30);
-      pnlRate = win ? getRandomFloat(0.05, 0.10, 3) : -getRandomFloat(0.05, 0.10, 3);
+      const win = Math.random() < (isUpEnv ? 0.55 : 0.25);
+      pnlRate = win ? getRandomFloat(0.10, 0.25, 3) : -getRandomFloat(0.10, 0.25, 3);
       feeRate = 0.0020;
       state.shares = Math.floor((state.assets * 2.0) / (state.taiex / 1000));
     } else if (actionType === 'DAY_TRADE') {
       state.dayTradeCount++;
-      const win = Math.random() < (isUpEnv ? 0.55 : 0.40);
-      pnlRate = win ? getRandomFloat(0.03, 0.08, 3) : -getRandomFloat(0.03, 0.08, 3);
+      const win = Math.random() < (isUpEnv ? 0.50 : 0.30);
+      pnlRate = win ? getRandomFloat(0.08, 0.15, 3) : -getRandomFloat(0.08, 0.15, 3);
       feeRate = 0.0015;
       state.shares = 0;
     } else if (actionType === 'HOLD') {
-      const win = Math.random() < (isUpEnv ? 0.55 : 0.40);
-      pnlRate = win ? getRandomFloat(0.02, 0.05, 3) : -getRandomFloat(0.02, 0.05, 3);
+      const win = Math.random() < (isUpEnv ? 0.60 : 0.35);
+      pnlRate = win ? getRandomFloat(0.01, 0.03, 3) : -getRandomFloat(0.01, 0.03, 3);
     } else if (actionType === 'TAKE_PROFIT') {
-      const cutRatio = getRandomFloat(0.3, 0.8, 2);
+      const cutRatio = getRandomFloat(0.3, 0.7, 2);
       state.shares = Math.floor(state.shares * (1 - cutRatio));
-      pnlRate = 0;
+      const win = Math.random() < (isUpEnv ? 0.55 : 0.40);
+      pnlRate = win ? getRandomFloat(0.01, 0.03, 3) : -getRandomFloat(0.01, 0.04, 3);
     } else if (actionType === 'DOUBLE_DOWN') {
-      const win = Math.random() < (isUpEnv ? 0.50 : 0.25);
-      pnlRate = win ? getRandomFloat(0.20, 0.40, 3) : -getRandomFloat(0.10, 0.20, 3);
+      const win = Math.random() < (isUpEnv ? 0.45 : 0.20);
+      pnlRate = win ? getRandomFloat(0.15, 0.35, 3) : -getRandomFloat(0.20, 0.35, 3);
       feeRate = 0.0044;
-      state.shares *= 2;
+      state.shares = state.shares === 0 
+        ? Math.floor((state.assets * 0.5) / (state.taiex / 1000))
+        : state.shares * 2;
     }
 
     const feeCost = Math.round(state.assets * feeRate);
