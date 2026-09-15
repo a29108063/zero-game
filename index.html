@@ -693,8 +693,10 @@
     if (dayProfit < 0) {
       const lossRatio = Math.abs(dayProfit) / baseAssets;
       baseHpImpact = -(lossRatio * 100);
-    } else {
-      baseHpImpact = Math.min(15, Math.floor(dayProfit / 40000));
+   }  else if (dayProfit > 0) {
+      
+      const profitRatio = (dayProfit / baseAssets) * 100;
+      baseHpImpact = profitRatio;
     }
 
     let dividendHpImpact = 0;
