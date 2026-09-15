@@ -668,7 +668,17 @@
       state.shares = state.shares === 0 
         ? Math.floor((state.assets * 0.7) / (state.taiex / 1000))
         : state.shares * 2;
-    }
+      }
+
+  // --- 黃金/美元避險戰術 對沖總資產變動機制 ---
+  if (state.pendingTacticalChoice && state.pendingTacticalChoice.type === 'HEDGE_GOLD_USD') {
+    const goldPct = (state.afterMarketData.gold.rawPct || 0) / 100;
+    const usdPct = (state.afterMarketData.usdt.rawPct || 0) / 100;
+    // 當大盤虧損時，黃金與美元的避險收益能對沖掉部分虧損
+    const hedgeBenefit = (goldPct + usdPct) * 0.5;
+    pnlRate += hedgeBenefit;
+  }
+    
 
     const feeCost = Math.round(state.assets * feeRate);
     const pnlAmount = Math.round(state.assets * pnlRate) - feeCost;
@@ -687,6 +697,102 @@
     saveGame();
     renderPhase();
   }
+    // 2. 修正動態環境生成：納入美元/黃金對沖與國際盤連動
+function generateDynamicEnvironment(targetType = null, globalMarket = null, tacticalChoice = null) {
+  let pool = [...baseEnvironments, ...historicalEnvironments, ...breakingNewsEnvironments];
+  
+  let globalBias = 0;
+  if (globalMarket) {
+    globalBias += (globalMarket.dow.rawPct || 0);
+    globalBias += (globalMarket.sox.rawPct || 0) * 1.5;
+    globalBias += (globalMarket.btc.rawPct || 0) * 0.5;
+    // 美元/新台幣(USDT/TWD) 匯率連動夜盤資產偏向
+    globalBias += (globalMarket.usdt.rawPct || 0) * 0.8;
+  }
+
+  let tacticalReport = null;
+  if (tacticalChoice) {
+    const isTacticsSuccess = Math.random() < 0.6;
+    if (tacticalChoice.type === 'TAIEX_UP') {
+      if (isTacticsSuccess) targetType = 'up';
+    } else if (tacticalChoice.type === 'TAIEX_DOWN') {
+      if (isTacticsSuccess) targetType = 'down';
+    } else if (tacticalChoice.type === 'HEDGE_GOLD_USD') {
+      // 戰術成功或下殺盤時，黃金與美金戰術強行吸收 50% 國際利空衝擊
+      if (globalBias < 0) globalBias *= 0.5;
+    }
+    tacticalReport = {
+      name: tacticalChoice.tacticsName,
+      isWin: isTacticsSuccess || tacticalChoice.type === 'HEDGE_GOLD_USD'
+    };
+    state.openingTacticalReport = tacticalReport;
+  } else {
+    state.openingTacticalReport = null;
+  }
+
+  if (targetType) {
+    pool = pool.filter(e => e.type === targetType);
+  } else {
+    const autoType = globalBias >= 0 ? 'up' : 'down';
+    pool = pool.map(e => {
+      let weight = e.weightBonus || 1;
+      if (e.type === autoType) weight *= 2.2;
+      return { ...e, calculatedWeight: weight };
+    });
+  }
+
+  let selectedEv;
+  if (!targetType && globalMarket) {
+    let totalWeight = pool.reduce((sum, item) => sum + (item.calculatedWeight || 1), 0);
+    let randomVal = Math.random() * totalWeight;
+    let currentSum = 0;
+    for (let item of pool) {
+      currentSum += (item.calculatedWeight || 1);
+      if (randomVal <= currentSum) {
+        selectedEv = item;
+        break;
+      }
+    }
+  }
+  if (!selectedEv) {
+    selectedEv = getRandomChoice(pool);
+  }
+
+  const isUp = selectedEv.type === 'up';
+  let basePctFactor = Math.abs(globalBias) > 2 ? 1.5 : 1.0;
+  const pctValue = parseFloat(((Math.random() * 3.5 + 0.5) * basePctFactor).toFixed(1));
+
+  return {
+    name: selectedEv.name,
+    type: selectedEv.type,
+    news: selectedEv.news + (globalMarket ? ` (因夜盤匯率與美股連動：${globalBias >= 0 ? '資金回流台幣升值/夜盤強勢' : '國際利空與匯率避險開盤壓抑'})` : ''),
+    dividendChance: selectedEv.dividendChance ?? 0.15,
+    dividendMultiplier: selectedEv.dividendMultiplier ?? 1.0,
+    changeRate: isUp ? (pctValue / 100) : (-pctValue / 100),
+    change: `${isUp ? '+' : '-'}${pctValue}%`
+  };
+}
+
+// 3. 盤後戰術選擇觸發設定（確保玩家可以選擇黃金/美元對沖戰術）
+function applyAfterMarketTactics(tacticsType) {
+  if (tacticsType === 'HEDGE_GOLD_USD') {
+    state.pendingTacticalChoice = {
+      type: 'HEDGE_GOLD_USD',
+      tacticsName: '🥇 黃金/美元避險戰術（雙重對沖開盤與總資產）'
+    };
+  } else if (tacticsType === 'TAIEX_UP') {
+    state.pendingTacticalChoice = {
+      type: 'TAIEX_UP',
+      tacticsName: '📈 夜盤押注看多（影響開盤）'
+    };
+  } else if (tacticsType === 'TAIEX_DOWN') {
+    state.pendingTacticalChoice = {
+      type: 'TAIEX_DOWN',
+      tacticsName: '📉 夜盤押注看空（影響開盤）'
+    };
+  }
+  saveGame();
+}
 
   function calculateDailyHpSettlement() {
     const dayProfit = state.assets - state.startDayAssets;
