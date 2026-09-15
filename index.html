@@ -92,7 +92,7 @@
       <div>💰 總資產: $<span id="assets">1,000,000</span></div>
       <div>📈 加權指數: <span id="taiex-hud">40,000</span></div>
       <div>📦 持股: <span id="shares">0</span> 股</div>
-      <div>🧠 HP: <span id="hp">100</span>%</div>
+      <div>🧠 HP: <span id="hp">100.0</span>%</div>
       <div>📅 Day <span id="day">1</span></div>
     </div>
     <div class="title-row">
@@ -180,6 +180,11 @@
   function getRandomChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
   function getRandomFloat(min, max, decimals = 1) { return parseFloat((Math.random() * (max - min) + min).toFixed(decimals)); }
 
+  // ✨ 浮點數精度保護工具函式
+  function roundHp(value) {
+    return Math.max(0, Math.min(100, parseFloat(value.toFixed(1))));
+  }
+
   function generateAfterMarketData() {
     const generateItem = (basePrice, isPoint = false) => {
       const isUp = Math.random() < 0.5;
@@ -205,28 +210,24 @@
     };
   }
 
-  // 🚀 核心更新：根據國際指數漲跌與戰術，加權計算開盤事件
   function generateDynamicEnvironment(targetType = null, globalMarket = null, tacticalChoice = null) {
     let pool = [...baseEnvironments, ...historicalEnvironments, ...breakingNewsEnvironments];
     
-    // 計算國際市場綜合情緒偏向 (以道瓊、費半、比特幣為主)
-    let globalBias = 0; // 正數代表偏多，負數代表偏空
+    let globalBias = 0;
     if (globalMarket) {
       globalBias += (globalMarket.dow.rawPct || 0);
-      globalBias += (globalMarket.sox.rawPct || 0) * 1.5; // 半導體對台股影響更大
+      globalBias += (globalMarket.sox.rawPct || 0) * 1.5;
       globalBias += (globalMarket.btc.rawPct || 0) * 0.5;
     }
 
-    // 若玩家前一日有下達戰術，強制微調方向或勝率
     let tacticalReport = null;
     if (tacticalChoice) {
-      const isTacticsSuccess = Math.random() < 0.6; // 60% 戰術命中率
+      const isTacticsSuccess = Math.random() < 0.6;
       if (tacticalChoice.type === 'TAIEX_UP') {
         if (isTacticsSuccess) targetType = 'up';
       } else if (tacticalChoice.type === 'TAIEX_DOWN') {
         if (isTacticsSuccess) targetType = 'down';
       } else if (tacticalChoice.type === 'HEDGE_GOLD_USD') {
-        // 黃金避險成功可抵銷部分空頭傷害
         if (globalBias < 0) globalBias *= 0.5;
       }
       tacticalReport = {
@@ -241,9 +242,7 @@
     if (targetType) {
       pool = pool.filter(e => e.type === targetType);
     } else {
-      // 根據國際綜合情緒自動決定偏多還偏空
       const autoType = globalBias >= 0 ? 'up' : 'down';
-      // 將國際盤勢情緒融入機率：若國際大好，拉高多頭事件權重
       pool = pool.map(e => {
         let weight = e.weightBonus || 1;
         if (e.type === autoType) weight *= 2.2;
@@ -251,7 +250,6 @@
       });
     }
 
-    // 依據加權抽樣
     let selectedEv;
     if (!targetType && globalMarket) {
       let totalWeight = pool.reduce((sum, item) => sum + (item.calculatedWeight || 1), 0);
@@ -270,7 +268,6 @@
     }
 
     const isUp = selectedEv.type === 'up';
-    // 讓國際盤幅的大小微調當日台股變動幅度
     let basePctFactor = Math.abs(globalBias) > 2 ? 1.5 : 1.0;
     const pctValue = parseFloat(((Math.random() * 3.5 + 0.5) * basePctFactor).toFixed(1));
 
@@ -306,8 +303,8 @@
       assets: 1000000,
       startDayAssets: 1000000,
       shares: 0,
-      hp: 100,
-      startDayHp: 100,
+      hp: 100.0,
+      startDayHp: 100.0,
       taiex: 40000,
       startDayTaiex: 40000,
       phase: 'INIT_STORY',
@@ -315,7 +312,7 @@
       playerName: '',
       currentEnv: null,
       currentMidEnv: null,
-      afterMarketData: generateAfterMarketData(), // 初始化第一日國際盤
+      afterMarketData: generateAfterMarketData(),
       pendingTacticalChoice: null,
       openingTacticalReport: null,
       todayTacticalLog: null,
@@ -327,7 +324,8 @@
       assignedGameOverTitle: null,
       lastFeeCost: 0,
       lastDividendInfo: null,
-      lastDividendDay: -10
+      lastDividendDay: -10,
+      lastDayHpChange: 0 // ✨ 新增：紀錄當日 HP 總變動量
     };
   }
 
@@ -381,7 +379,7 @@
   function updateHUD() {
     document.getElementById('assets').innerText = Math.max(0, state.assets).toLocaleString();
     document.getElementById('shares').innerText = state.shares.toLocaleString();
-    document.getElementById('hp').innerText = Math.max(0, state.hp).toFixed(1);
+    document.getElementById('hp').innerText = roundHp(state.hp).toFixed(1);
     document.getElementById('day').innerText = state.day;
     document.getElementById('title-badge').innerText = calculateTitle();
 
@@ -417,6 +415,9 @@
       const sign = item.profit >= 0 ? '+' : '';
       const openColor = item.openType === 'up' ? 'red' : 'green';
       const midColor = item.midType === 'up' ? 'red' : 'green';
+      
+      const hpColor = item.hpChange >= 0 ? 'red' : 'green';
+      const hpSign = item.hpChange >= 0 ? '+' : '';
 
       return `
         <div class="history-card">
@@ -425,7 +426,7 @@
             <span class="${diffColor}">${sign}$${item.profit.toLocaleString()} (${sign}${item.pct}%)</span>
           </div>
           <div class="history-grid">
-            <div>開盤/午盤走勢：</div>
+            <div>走勢(開/午)：</div>
             <div>
               <span class="${openColor}">開盤 ${item.openChange || '--'}</span> / 
               <span class="${midColor}">午盤 ${item.midChange || '--'}</span>
@@ -433,6 +434,7 @@
             <div>大盤收盤：</div><div>${item.taiexEnd.toLocaleString()} (${item.taiexPct})</div>
             <div>剩餘持股：</div><div>${item.shares.toLocaleString()} 股</div>
             <div>手續費+稅：</div><div>$${(item.fee || 0).toLocaleString()}</div>
+            <div>🧠 HP損益：</div><div class="${hpColor}">${hpSign}${item.hpChange.toFixed(1)}% (期末: ${item.endHp.toFixed(1)}%)</div>
             ${item.dividend ? `<div>🎁 股利入帳：</div><div style="color: #69f0ae;">+$${item.dividend.toLocaleString()}</div>` : ''}
             ${item.tacticalReport ? `<div style="color: #ffd54f; grid-column: span 2;">🎯 戰術結果：${item.tacticalReport}</div>` : ''}
             <div style="color: #e0e0e0; font-weight: bold;">期末資產：</div><div style="color: #e0e0e0; font-weight: bold;">$${item.endAssets.toLocaleString()}</div>
@@ -554,7 +556,6 @@
           const baseRatio = Math.min(totalDividend / 50000, 1.0);
           hpGainPct = getRandomFloat(4.0, 12.0, 1) * multiplier * (1 + baseRatio * 0.5);
           hpGainPct = Math.min(hpGainPct, 100 - state.hp);
-          state.hp = Math.min(100, state.hp + hpGainPct);
         }
 
         state.lastDividendInfo = {
@@ -569,10 +570,9 @@
           perShare: dividendPerShare,
           totalDividend: 0,
           missed: true,
-          hpGain: 0,
+          hpGain: -5.0, // 錯過股利懲罰 -5%
           coolingDown: false
         };
-        state.hp = Math.max(0, state.hp - 5);
       }
     } else {
       state.lastDividendInfo = {
@@ -585,13 +585,13 @@
     }
   }
 
+  // ✨ 核心升級： handleChoice 只算資產變化，不當場扣 HP
   function handleChoice(actionType) {
     stopTimer();
     const env = state.phase === 'OPEN' ? state.currentEnv : state.currentMidEnv;
     const isUpEnv = env.type === 'up';
     let pnlRate = 0;
     let feeRate = 0;
-    let hpImpactPct = 0;
 
     if (actionType === 'CASH') {
       const win = Math.random() < (isUpEnv ? 0.55 : 0.42);
@@ -615,8 +615,7 @@
     } else if (actionType === 'TAKE_PROFIT') {
       const cutRatio = getRandomFloat(0.3, 0.8, 2);
       state.shares = Math.floor(state.shares * (1 - cutRatio));
-      pnlRate = -0.01;
-      hpImpactPct = 5.0;
+      pnlRate = 0;
     } else if (actionType === 'DOUBLE_DOWN') {
       const win = Math.random() < (isUpEnv ? 0.28 : 0.15);
       pnlRate = win ? getRandomFloat(0.20, 0.40, 3) : -getRandomFloat(0.15, 0.35, 3);
@@ -629,22 +628,45 @@
     state.assets += pnlAmount;
     state.lastFeeCost += feeCost;
 
-    if (pnlAmount < 0) {
-      hpImpactPct += Math.max(-20, Math.floor(pnlAmount / 35000));
-    } else {
-      hpImpactPct += Math.min(15, Math.floor(pnlAmount / 40000));
-    }
-    state.hp = Math.max(0, Math.min(100, state.hp + hpImpactPct));
-
     if (state.phase === 'OPEN') {
       state.phase = 'MID';
     } else if (state.phase === 'MID') {
       state.phase = 'AFTER';
       checkDividendPayout();
+      
+      // ✨ 核心升級：在盤後根據「全天總損益」統一結算 HP
+      calculateDailyHpSettlement();
+
       state.afterMarketData = generateAfterMarketData();
       recordDailyLog();
     }
     renderPhase();
+  }
+
+  // ✨ 核心新函式：統一於盤後以一整天總損益結算 HP
+  function calculateDailyHpSettlement() {
+    const dayProfit = state.assets - state.startDayAssets;
+    const baseAssets = Math.max(state.startDayAssets, 1);
+    let baseHpImpact = 0;
+
+    if (dayProfit < 0) {
+      // 總資產虧損：依據整天虧損比例扣血
+      const lossRatio = Math.abs(dayProfit) / baseAssets;
+      baseHpImpact = -(lossRatio * 100);
+    } else {
+      // 總資產獲利：依據獲利金額給予補血 (上限 15%)
+      baseHpImpact = Math.min(15, Math.floor(dayProfit / 40000));
+    }
+
+    // 加上股利產生的 HP 影響（包含加分或未持股懲罰）
+    let dividendHpImpact = 0;
+    if (state.lastDividendInfo) {
+      dividendHpImpact = state.lastDividendInfo.hpGain || 0;
+    }
+
+    const totalHpChange = baseHpImpact + dividendHpImpact;
+    state.lastDayHpChange = totalHpChange;
+    state.hp = roundHp(state.hp + totalHpChange);
   }
 
   function handleTacticalChoice(choice) {
@@ -685,12 +707,10 @@
   }
 
   function recordDailyLog() {
-    const existingIndex = state.dailyLog.findIndex(l => l.day === state.day);
-
     const profit = state.assets - state.startDayAssets;
-    const pct = ((profit / state.startDayAssets) * 100).toFixed(1);
+    const pct = ((profit / Math.max(state.startDayAssets, 1)) * 100).toFixed(1);
     const taiexDiffTotal = state.taiex - state.startDayTaiex;
-    const taiexPctTotal = ((taiexDiffTotal / state.startDayTaiex) * 100).toFixed(2);
+    const taiexPctTotal = ((taiexDiffTotal / Math.max(state.startDayTaiex, 1)) * 100).toFixed(2);
 
     const logData = {
       day: state.day,
@@ -699,209 +719,178 @@
       openChange: state.currentEnv ? state.currentEnv.change : '0%',
       midType: state.currentMidEnv ? state.currentMidEnv.type : 'up',
       midChange: state.currentMidEnv ? state.currentMidEnv.change : '0%',
-      profit: profit,
-      pct: pct,
       taiexEnd: state.taiex,
       taiexPct: `${taiexDiffTotal >= 0 ? '+' : ''}${taiexPctTotal}%`,
+      profit: profit,
+      pct: pct,
+      endAssets: state.assets,
       shares: state.shares,
       fee: state.lastFeeCost,
-      dividend: state.lastDividendInfo && !state.lastDividendInfo.coolingDown ? state.lastDividendInfo.totalDividend : 0,
-      tacticalReport: state.openingTacticalReport ? `${state.openingTacticalReport.name} (${state.openingTacticalReport.isWin ? '成功' : '失敗'})` : null,
-      endAssets: state.assets
+      hpChange: state.lastDayHpChange, // ✨ 記錄當日 HP 總變化
+      endHp: state.hp,
+      dividend: (state.lastDividendInfo && !state.lastDividendInfo.missed) ? state.lastDividendInfo.totalDividend : 0,
+      tacticalReport: state.openingTacticalReport ? `${state.openingTacticalReport.name} (${state.openingTacticalReport.isWin ? '成功' : '失敗'})` : null
     };
 
-    if (existingIndex !== -1) {
-      state.dailyLog[existingIndex] = logData;
-    } else {
-      state.dailyLog.push(logData);
-    }
-
-    if (state.currentTab === 'history') renderHistory();
+    state.dailyLog.push(logData);
   }
 
   function renderPhase() {
-    if (state.assets <= 0 || state.hp <= 0) {
+    updateHUD();
+    const content = document.getElementById('content-area');
+
+    // 遊戲結束判定 (破產或血量扣光)
+    if ((state.assets <= 0 || state.hp <= 0) && state.phase !== 'INIT_STORY') {
       stopTimer();
       const finalTitle = calculateTitle();
-      const area = document.getElementById('content-area');
-      area.innerHTML = `
-        <div style="text-align: center; padding: 20px 10px;">
-          <h2 class="red" style="font-size: 1.8rem; margin-top: 0;">💥 慘遭斷頭！韭菜畢業宣告 💥</h2>
-          <p style="font-size: 1rem; color: #ffccbc;">你在台股戰場生存了 <b style="color:#ffd54f;">${state.day}</b> 天，最終宣告破產退場。</p>
-          <div class="settlement-card" style="margin: 20px auto; max-width: 400px; text-align: left;">
-            <div style="margin-bottom: 8px;">🏷️ 獲得稱號：<span class="title-badge">${finalTitle}</span></div>
-            <div style="margin-bottom: 8px;">💰 剩餘資產：<span class="red">$${Math.max(0, state.assets).toLocaleString()}</span></div>
-            <div style="margin-bottom: 8px;">🧠 最終精神 (HP)：<span class="red">${Math.max(0, state.hp).toFixed(1)}%</span></div>
-            <div>📦 剩餘庫存：<span>${state.shares.toLocaleString()} 股</span></div>
-          </div>
-          <button class="btn btn-next" onclick="submitScore()" style="margin-bottom: 10px;">🏆 登錄成績至排行榜</button>
-          <button class="btn btn-danger" onclick="resetToDayOne()">🔄 重新投胎再戰台股</button>
+      content.innerHTML = `
+        <div class="story-box" style="border-color:#ff5252; background:#3a1c1c;">
+          <h2 class="red" style="margin-top:0;">💀 韭菜畢業宣告 💀</h2>
+          <p>你在台股市場生存了 <b>${state.day}</b> 天，終究難逃被市場大老與主力割韭菜的宿命！</p>
+          <p>最終解鎖稱號：<span class="title-badge" style="font-size:1.1rem;">${finalTitle}</span></p>
+          <p>最終期末總資產：<b>$${Math.max(0, state.assets).toLocaleString()}</b></p>
+          <p>最終心理血量：<b>${roundHp(state.hp).toFixed(1)}%</b></p>
         </div>
+        <button class="btn btn-next" onclick="submitScore()">🏆 登錄英雄榜成果</button>
+        <button class="btn btn-danger" style="margin-top:10px;" onclick="resetToDayOne()">🔄 重新開局（再戰台股）</button>
       `;
-      updateHUD();
       return;
     }
 
-    const area = document.getElementById('content-area');
-
+    // 階段 1：初始化散戶故事
     if (state.phase === 'INIT_STORY') {
-      stopTimer();
-      area.innerHTML = `
-        <div style="padding: 10px 0;">
-          <h3 style="color:#ffd54f; margin-top:0;">📖 身世背景生成</h3>
-          <div class="story-box">${state.currentStory}</div>
-          <label style="font-size:0.9rem; color:#aaa;">請輸入你的散戶代號：</label>
-          <input type="text" id="setup-name" placeholder="例如：信義區當沖狂魔" value="少年股神">
-          <button class="btn btn-next" onclick="startGameWithStory()">▶️ 帶著 100 萬積蓄闖蕩台股</button>
+      content.innerHTML = `
+        <div class="story-box">
+          <h3 style="margin-top:0; color:#ffd54f;">📖 散戶背景設定</h3>
+          <p>${state.currentStory}</p>
         </div>
+        <div style="margin-bottom: 15px;">
+          <label style="display:block; margin-bottom: 5px; font-weight:bold;">請輸入你的散戶稱號 / 暱稱：</label>
+          <input type="text" id="setup-name" placeholder="例如：信義區當沖王" value="${state.playerName}">
+        </div>
+        <button class="btn btn-next" onclick="startGameWithStory()">🚀 帶著 $1,000,000 投入股市！</button>
       `;
       return;
     }
 
+    // 階段 2：早盤 (OPEN)
     if (state.phase === 'OPEN') {
       if (!state.currentEnv) {
-        // 帶入國際市場數據對隔日開盤進行加權
         state.currentEnv = generateDynamicEnvironment(null, state.afterMarketData, state.pendingTacticalChoice);
         state.pendingTacticalChoice = null;
-        
-        const changeFloat = parseFloat(state.currentEnv.changeRate);
-        const indexShift = Math.round(state.taiex * changeFloat);
-        state.taiex += indexShift;
+        const taiexChange = Math.round(state.taiex * state.currentEnv.changeRate);
+        state.taiex += taiexChange;
       }
 
-      updateHUD();
       startTimer(10, () => handleChoice('CASH'));
 
-      let tacticalReportHtml = '';
-      if (state.openingTacticalReport) {
-        const r = state.openingTacticalReport;
-        tacticalReportHtml = `<div style="margin-bottom:10px; font-size:0.85rem; color:${r.isWin ? '#69f0ae' : '#ff5252'};">🎯 昨日戰術【${r.name}】結算：<b>${r.isWin ? '戰術成功，獲得額外加成！' : '遭到主力逆勢狙擊，判定失敗！'}</b></div>`;
-      }
-
-      area.innerHTML = `
-        <div>
-          ${tacticalReportHtml}
-          <div class="market-info">
-            <span>🌅 <b>盤前開盤快訊</b>：${state.currentEnv.name}</span>
-            <span class="${state.currentEnv.type === 'up' ? 'red' : 'green'}">${state.currentEnv.change}</span>
-          </div>
-          <div class="news">💬 <b>市場消息</b>：${state.currentEnv.news}</div>
-          <div style="font-size: 0.9rem; margin-bottom: 8px; color: #ffd54f;">請選擇您的開盤因應策略：</div>
-          <button class="btn" onclick="handleChoice('CASH')">📈 <b>現股常規壓身</b> (穩健布局權值股，勝率適中)</button>
-          <button class="btn" onclick="handleChoice('MARGIN')">⚡ <b>融資開槓桿 ALL IN</b> (融資 2 倍放大，高報酬高風險)</button>
-          <button class="btn" onclick="handleChoice('DAY_TRADE')">🔥 <b>無本當沖盲狙</b> (極速搓合，手續費低但隨時準備畢業)</button>
+      content.innerHTML = `
+        <div class="market-info">
+          <div><b>📅 開盤階段 (09:00)</b></div>
+          <div>大盤開盤走勢：<span class="${state.currentEnv.type === 'up' ? 'red' : 'green'}">${state.currentEnv.change}</span></div>
         </div>
+
+        ${state.openingTacticalReport ? `
+          <div style="background:#252538; border:1px solid #ffd54f; padding:8px 12px; border-radius:4px; margin-bottom:12px; font-size:0.85rem; color:#ffd54f;">
+            🎯 昨夜戰術【${state.openingTacticalReport.name}】執行結果：<b>${state.openingTacticalReport.isWin ? '成功命中開盤走勢！' : '判斷失誤，行情反向！'}</b>
+          </div>
+        ` : ''}
+
+        <div class="news">
+          <b>📰 早盤市場即時新聞：</b><br>${state.currentEnv.news}
+        </div>
+
+        <p style="font-weight:bold; margin-bottom:8px;">請選擇你的早盤交易策略：</p>
+        <button class="btn" onclick="handleChoice('CASH')">💵 現股買進 / 加碼（風險適中，手續費 0.44%）</button>
+        <button class="btn" onclick="handleChoice('MARGIN')">⚡ 融資開槓桿 ALL-IN（開 2.5 倍槓桿，勝率較低但報酬極大）</button>
+        <button class="btn" onclick="handleChoice('DAY_TRADE')">🔥 無本當沖走鋼索（風險極高，手續費優待 0.29%）</button>
+        <button class="btn" onclick="handleChoice('HOLD')">🙈 觀望不動 / 按兵不動（風險最低）</button>
       `;
       return;
     }
 
+    // 階段 3：午盤 (MID)
     if (state.phase === 'MID') {
       if (!state.currentMidEnv) {
         state.currentMidEnv = generateDynamicMidEnvironment();
-        const changeFloat = parseFloat(state.currentMidEnv.changeRate);
-        const indexShift = Math.round(state.taiex * changeFloat);
-        state.taiex += indexShift;
+        const taiexChange = Math.round(state.taiex * state.currentMidEnv.changeRate);
+        state.taiex += taiexChange;
       }
 
-      updateHUD();
       startTimer(10, () => handleChoice('HOLD'));
 
-      area.innerHTML = `
-        <div>
-          <div class="market-info">
-            <span>⚡ <b>午盤戰局變動</b>：${state.currentMidEnv.name}</span>
-            <span class="${state.currentMidEnv.type === 'up' ? 'red' : 'green'}">${state.currentMidEnv.change}</span>
-          </div>
-          <div class="news">💬 <b>盤中實況</b>：${state.currentMidEnv.news}</div>
-          <div style="font-size: 0.9rem; margin-bottom: 8px; color: #ffd54f;">午盤風雲變色，請立即採取動作：</div>
-          <button class="btn" onclick="handleChoice('HOLD')">🛡️ <b>抱股緊抱不放</b> (維持現狀，靜觀其變)</button>
-          <button class="btn" onclick="handleChoice('TAKE_PROFIT')">💰 <b>逢高獲利了結 / 停損砍倉</b> (部分持股落袋為安，恢復心態)</button>
-          <button class="btn" onclick="handleChoice('DOUBLE_DOWN')">🚀 <b>凹單加碼攤平</b> (賭盤勢反轉，持股翻倍)</button>
+      content.innerHTML = `
+        <div class="market-info">
+          <div><b>☀️ 午盤階段 (12:30)</b></div>
+          <div>午盤盤勢變化：<span class="${state.currentMidEnv.type === 'up' ? 'red' : 'green'}">${state.currentMidEnv.change}</span></div>
         </div>
+
+        <div class="news">
+          <b>📰 午盤市場即時突發：</b><br>${state.currentMidEnv.news}
+        </div>
+
+        <p style="font-weight:bold; margin-bottom:8px;">行情出現波動，請選擇午盤應變策略：</p>
+        <button class="btn" onclick="handleChoice('TAKE_PROFIT')">💰 獲利了結 / 減碼入袋（落袋為安，賣出部分持股）</button>
+        <button class="btn" onclick="handleChoice('DOUBLE_DOWN')">🎲 逆勢攤平 / 凹單加碼（賭尾盤大反轉，風險極高）</button>
+        <button class="btn" onclick="handleChoice('HOLD')">☕ 保持定力 / 觀望至收盤（靜待尾盤結算）</button>
       `;
       return;
     }
 
+    // 階段 4：盤後戰術與對帳單 (AFTER)
     if (state.phase === 'AFTER') {
       stopTimer();
-      updateHUD();
+      const div = state.lastDividendInfo;
+      const dayProfit = state.assets - state.startDayAssets;
+      const profitColor = dayProfit >= 0 ? 'red' : 'green';
+      const profitSign = dayProfit >= 0 ? '+' : '';
+      const profitPct = ((dayProfit / Math.max(state.startDayAssets, 1)) * 100).toFixed(1);
 
-      const profit = state.assets - state.startDayAssets;
-      const pct = ((profit / state.startDayAssets) * 100).toFixed(1);
-      const isProfitable = profit >= 0;
-      const m = state.afterMarketData;
+      const hpChangeColor = state.lastDayHpChange >= 0 ? 'red' : 'green';
+      const hpChangeSign = state.lastDayHpChange >= 0 ? '+' : '';
 
-      let dividendHtml = '';
-      if (state.lastDividendInfo) {
-        const info = state.lastDividendInfo;
-        if (info.coolingDown) {
-          dividendHtml = `<div class="dividend-box">🎁 <b>除權息季通知</b>：目前距離上次領息保護期中，今日無股利發放。</div>`;
-        } else if (info.missed) {
-          dividendHtml = `<div class="dividend-box" style="border-color:#ff5252; color:#ffccbc;">🎁 <b>除權息入帳通知</b>：今日為優質個股除權息日！但您<b>未持有任何庫存</b>，錯失領取每股 $${info.perShare} 股利的機會，心態小幅炸裂 (-5% HP)！</div>`;
-        } else if (info.totalDividend > 0) {
-          dividendHtml = `<div class="dividend-box">🎁 <b>股利順利入帳</b>：持股參與除權息成功！每股配發 $<b>${info.perShare}</b>，共領取現金股利 <span class="red">+$${info.totalDividend.toLocaleString()}</span>！精神恢復 +${info.hpGain}%！</div>`;
-        } else {
-          dividendHtml = `<div class="dividend-box" style="color:#aaa;">🎁 今日非除權息發放日，股市平穩運作。</div>`;
-        }
-      }
-
-      area.innerHTML = `
-        <div>
-          <h3 style="color:#ffd54f; margin-top:0;">📊 Day ${state.day} 收盤對帳單</h3>
-          <div class="settlement-card">
-            <div style="margin-bottom:6px;">本日損益：<span class="${isProfitable ? 'red' : 'green'}">${isProfitable ? '+' : ''}$${profit.toLocaleString()} (${isProfitable ? '+' : ''}${pct}%)</span></div>
-            <div style="margin-bottom:6px;">手續費與證交稅開銷：<span style="color:#aaa;">$${state.lastFeeCost.toLocaleString()}</span></div>
-            <div style="margin-bottom:6px;">收盤總資產：<b>$${state.assets.toLocaleString()}</b></div>
-            <div>目前庫存部位：<span>${state.shares.toLocaleString()} 股</span></div>
+      content.innerHTML = `
+        <div class="settlement-card">
+          <h3 style="margin-top:0; color:#00e676;">📊 Day ${state.day} 盤後對帳單結算</h3>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; font-size:0.9rem; margin-bottom:10px;">
+            <div>開盤環境：<b>${state.currentEnv ? state.currentEnv.name : ''}</b></div>
+            <div>午盤動向：<b>${state.currentMidEnv ? state.currentMidEnv.name : ''}</b></div>
+            <div>當日資產損益：<b class="${profitColor}">${profitSign}$${dayProfit.toLocaleString()} (${profitSign}${profitPct}%)</b></div>
+            <div>當日手續費/稅：<b>$${state.lastFeeCost.toLocaleString()}</b></div>
+            <div>🧠 心理 HP 結算：<b class="${hpChangeColor}">${hpChangeSign}${state.lastDayHpChange.toFixed(1)}%</b></div>
+            <div>當前總 HP：<b>${roundHp(state.hp).toFixed(1)}%</b></div>
           </div>
-
-          ${dividendHtml}
-
-          <div style="font-size: 0.85rem; color: #8be9fd; margin-bottom: 6px;">🌐 <b>國際金融市場收盤看板（將影響明日台股開盤加權）</b></div>
-          <div class="global-market-grid">
-            <div class="market-card">
-              <div class="title">道瓊工業</div>
-              <div>${m.dow.price}</div>
-              <div class="${m.dow.color}">${m.dow.pct}</div>
+          ${div && div.perShare > 0 ? `
+            <div class="dividend-box">
+              🎁 <b>【除權息利多通知】</b> 本日發放股利 每股 $${div.perShare}！<br>
+              ${div.missed ? `<span class="red">⚠️ 你因今日手上無任何持股，錯失本次股利發放！(心理 HP 扣除 5%)</span>` : 
+              `<span class="green">🎉 成功獲得總股利金額：+$${div.totalDividend.toLocaleString()}！(心理 HP 恢復 +${div.hpGain}%)</span>`}
             </div>
-            <div class="market-card">
-              <div class="title">標普 500</div>
-              <div>${m.sp500.price}</div>
-              <div class="${m.sp500.color}">${m.sp500.pct}</div>
-            </div>
-            <div class="market-card">
-              <div class="title">費城半導體</div>
-              <div>${m.sox.price}</div>
-              <div class="${m.sox.color}">${m.sox.pct}</div>
-            </div>
-            <div class="market-card">
-              <div class="title">黃金 (盎司)</div>
-              <div>$${m.gold.price}</div>
-              <div class="${m.gold.color}">${m.gold.pct}</div>
-            </div>
-            <div class="market-card">
-              <div class="title">美元/台幣</div>
-              <div>$${m.usdt.price}</div>
-              <div class="${m.usdt.color}">${m.usdt.pct}</div>
-            </div>
-            <div class="market-card">
-              <div class="title">比特幣</div>
-              <div>$${m.btc.price}</div>
-              <div class="${m.btc.color}">${m.btc.pct}</div>
-            </div>
-          </div>
-
-          <div style="font-size: 0.9rem; margin-bottom: 8px; color: #ffd54f;">🎯 請擬定明日盤後戰術布局：</div>
-          <button class="btn" onclick="handleTacticalChoice('TAIEX_UP')">🚀 <b>押注台股多頭續衝</b> (強化明日看多機率)</button>
-          <button class="btn" onclick="handleTacticalChoice('TAIEX_DOWN')">📉 <b>押注空頭大反撲</b> (強化明日看空機率)</button>
-          <button class="btn" onclick="handleTacticalChoice('HEDGE_GOLD_USD')">🛡️ <b>黃金/美元動態避險</b> (降低國際利空衝擊)</button>
-          <button class="btn" onclick="handleTacticalChoice('HEDGE_BTC')">🪙 <b>BTC 風險資產聯動</b> (投機高風險高回報)</button>
+          ` : (div && div.coolingDown ? `<div style="font-size:0.8rem; color:#888;">💡 目前處於除權息冷卻期（距離下次可能除息需間隔至少 10 天）。</div>` : '')}
         </div>
+
+        <div style="margin-bottom:12px;">
+          <b style="color:#8be9fd;">全球國際市場觀測儀 (夜盤與美股)：</b>
+          <div class="global-market-grid">
+            <div class="market-card"><div class="title">道瓊指數</div><div class="${state.afterMarketData.dow.color}">${state.afterMarketData.dow.price} (${state.afterMarketData.dow.pct})</div></div>
+            <div class="market-card"><div class="title">標普500</div><div class="${state.afterMarketData.sp500.color}">${state.afterMarketData.sp500.price} (${state.afterMarketData.sp500.pct})</div></div>
+            <div class="market-card"><div class="title">費城半導體</div><div class="${state.afterMarketData.sox.color}">${state.afterMarketData.sox.price} (${state.afterMarketData.sox.pct})</div></div>
+            <div class="market-card"><div class="title">黃金現貨</div><div class="${state.afterMarketData.gold.color}">${state.afterMarketData.gold.price} (${state.afterMarketData.gold.pct})</div></div>
+            <div class="market-card"><div class="title">USDT / TWD</div><div class="${state.afterMarketData.usdt.color}">${state.afterMarketData.usdt.price} (${state.afterMarketData.usdt.pct})</div></div>
+            <div class="market-card"><div class="title">BTC / USD</div><div class="${state.afterMarketData.btc.color}">${state.afterMarketData.btc.price} (${state.afterMarketData.btc.pct})</div></div>
+          </div>
+        </div>
+
+        <p style="font-weight:bold; margin-bottom:8px; color:#ffd54f;">🎯 請擬定今晚盤後戰術 (影響明日開盤走勢)：</p>
+        <button class="btn" onclick="handleTacticalChoice('TAIEX_UP')">🚀 夜盤夜超猛：預測明日台股開盤大噴發</button>
+        <button class="btn" onclick="handleTacticalChoice('TAIEX_DOWN')">📉 美股暴雷疑慮：預測明日空頭急殺</button>
+        <button class="btn" onclick="handleTacticalChoice('HEDGE_GOLD_USD')">🛡️ 部署避險：連動黃金與匯率，降低明日黑天鵝衝擊</button>
+        <button class="btn" onclick="handleTacticalChoice('HEDGE_BTC')">🪙 比特幣開飆：押寶風險資產熱錢回流</button>
       `;
+      return;
     }
   }
 
-  // 初始化啟動
+  // 初始化啟動遊戲
   renderPhase();
-  switchTab('history');
 </script></body></html>
