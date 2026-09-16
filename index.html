@@ -741,7 +741,7 @@ function generateDynamicEnvironment(targetType = null, globalMarket = null, tact
   }
   let tacticalReport = null;
   if (tacticalChoice) {
-    const isTacticsSuccess = Math.random() < 0.2;
+    const isTacticsSuccess = Math.random() < 0.1;
     if (tacticalChoice.type === 'TAIEX_UP') {
       if (isTacticsSuccess) targetType = 'up';
     } else if (tacticalChoice.type === 'TAIEX_DOWN') {
