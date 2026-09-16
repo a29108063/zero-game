@@ -703,16 +703,15 @@ function generateDynamicEnvironment(targetType = null, globalMarket = null, tact
   
   let globalBias = 0;
   if (globalMarket) {
-    globalBias += (globalMarket.dow.rawPct || 0);
-    globalBias += (globalMarket.sox.rawPct || 0) * 1.5;
-    globalBias += (globalMarket.btc.rawPct || 0) * 0.5;
-    // 美元/新台幣(USDT/TWD) 匯率連動夜盤資產偏向
-    globalBias += (globalMarket.usdt.rawPct || 0) * 0.8;
+   globalBias += (globalMarket.dow.rawPct || 0) * 1.0;    // 道瓊指數 (權重 1.0)
+    globalBias += (globalMarket.sp500.rawPct || 0) * 1.2;  // 標普 500 (新增，權重 1.2)
+    globalBias += (globalMarket.sox.rawPct || 0) * 1.5;    // 費城半導體 (權重 1.5)
+    globalBias += (globalMarket.btc.rawPct || 0) * 0.5;    // 比特幣 (權重 0.5)
+    globalBias += (globalMarket.usdt.rawPct || 0) * (-0.8); // 美元/台幣 (新增負權重 -0.8)
   }
-
   let tacticalReport = null;
   if (tacticalChoice) {
-    const isTacticsSuccess = Math.random() < 0.6;
+    const isTacticsSuccess = Math.random() < 0.4;
     if (tacticalChoice.type === 'TAIEX_UP') {
       if (isTacticsSuccess) targetType = 'up';
     } else if (tacticalChoice.type === 'TAIEX_DOWN') {
