@@ -742,11 +742,13 @@ function generateDynamicEnvironment(targetType = null, globalMarket = null, tact
   }
   let tacticalReport = null;
   if (tacticalChoice) {
-    const isTacticsSuccess = Math.random() < 0.2;
+    const isTacticsSuccess = Math.random() < 0.4;
     if (tacticalChoice.type === 'TAIEX_UP') {
-      if (isTacticsSuccess) targetType = 'up';
-    } else if (tacticalChoice.type === 'TAIEX_DOWN') {
-      if (isTacticsSuccess) targetType = 'down';
+    // 預測看多：成功(20%)開 up，失敗(80%)強制開 down
+    targetType = isTacticsSuccess ? 'up' : 'down';
+  } else if (tacticalChoice.type === 'TAIEX_DOWN') {
+    // 預測看空：成功(20%)開 down，失敗(80%)強制開 up
+    targetType = isTacticsSuccess ? 'down' : 'up';
     } else if (tacticalChoice.type === 'HEDGE_GOLD_USD') {
       // 戰術成功或下殺盤時，黃金與美金戰術強行吸收 50% 國際利空衝擊
       if (globalBias < 0) globalBias *= 0.5;
@@ -1077,8 +1079,8 @@ function applyAfterMarketTactics(tacticsType) {
         </div>
 
         <p style="font-size:0.9rem; color:#ffd54f; margin-bottom: 8px;">🎯 請選擇夜盤戰術部署（將影響明日開盤環境）：</p>
-        <button class="btn" onclick="handleTacticalChoice('TAIEX_UP')">🚀 部署「明日台股多頭續衝」戰術 (20%鎖定漲盤)</button>
-        <button class="btn" onclick="handleTacticalChoice('TAIEX_DOWN')">📉 部署「明日空頭大反撲」戰術 (20%鎖定跌盤)</button>
+        <button class="btn" onclick="handleTacticalChoice('TAIEX_UP')">🚀 部署「明日台股多頭續衝」戰術 (40%鎖定漲盤)</button>
+        <button class="btn" onclick="handleTacticalChoice('TAIEX_DOWN')">📉 部署「明日空頭大反撲」戰術 (40%鎖定跌盤)</button>
         <button class="btn" onclick="handleTacticalChoice('HEDGE_GOLD_USD')">🛡️ 部署「黃金/美元動態避險」戰術 (降低國際盤連動衝擊)</button>
         <button class="btn" onclick="handleTacticalChoice('HEDGE_BTC')">🪙 部署「BTC風險資產聯動」戰術 (博取高風險波動收益)</button>
       `;
