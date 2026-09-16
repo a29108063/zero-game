@@ -641,8 +641,8 @@
     
     // 💡【勝率動態加成】大盤漲跌幅度越猛，勝率偏移越明顯（最大加成 +/- 15%）
     // 牛市狂飆時大盤 +3.5%，勝率額外 +10.5%；熊市血洗時 -3.5%，勝率額外 -10.5%
-    const winRateBonus = isUpEnv ? (envMagnitude * 3.0) : -(envMagnitude * 3.0);
-    const clampWinRate = (baseRate) => Math.min(0.92, Math.max(0.08, baseRate + winRateBonus));
+    const winRateBonus = isUpEnv ? (envMagnitude * 1.5) : -(envMagnitude * 1.5);
+    const clampWinRate = (baseRate) => Math.min(0.80, Math.max(0.05, baseRate + winRateBonus));
 
     // 💡【報酬率倍率加成】大盤波動越大，獲利與虧損的震幅也跟著放大
     const pnlVolatilityMultiplier = 1.0 + (envMagnitude * 10); // 例如 3.5% 漲跌幅會放大 1.35 倍損益
@@ -660,7 +660,7 @@
 
     } else if (actionType === 'MARGIN') {
       // 融資槓桿：高度受大盤波幅影響
-      const win = Math.random() < clampWinRate(isUpEnv ? 0.50 : 0.25);
+      const win = Math.random() < clampWinRate(isUpEnv ? 0.30 : 0.15);
       const basePnl = win ? getRandomFloat(0.10, 0.25, 3) : -getRandomFloat(0.10, 0.25, 3);
       pnlRate = basePnl * pnlVolatilityMultiplier;
       feeRate = 0.0020;
@@ -669,7 +669,7 @@
     } else if (actionType === 'DAY_TRADE') {
       // 當沖交易
       state.dayTradeCount++;
-      const win = Math.random() < clampWinRate(isUpEnv ? 0.45 : 0.28);
+      const win = Math.random() < clampWinRate(isUpEnv ? 0.20 : 0.10);
       const basePnl = win ? getRandomFloat(0.08, 0.15, 3) : -getRandomFloat(0.08, 0.15, 3);
       pnlRate = basePnl * pnlVolatilityMultiplier;
       feeRate = 0.0015;
@@ -677,7 +677,7 @@
 
     } else if (actionType === 'HOLD') {
       // 按兵不動
-      const win = Math.random() < clampWinRate(isUpEnv ? 0.60 : 0.35);
+      const win = Math.random() < clampWinRate(isUpEnv ? 0.50 : 0.25);
       const basePnl = win ? getRandomFloat(0.01, 0.03, 3) : -getRandomFloat(0.01, 0.03, 3);
       pnlRate = basePnl * pnlVolatilityMultiplier;
 
@@ -685,13 +685,13 @@
       // 獲利入袋 / 停損停利
       const cutRatio = getRandomFloat(0.3, 0.7, 2);
       state.shares = Math.floor(state.shares * (1 - cutRatio));
-      const win = Math.random() < clampWinRate(isUpEnv ? 0.68 : 0.52);
+      const win = Math.random() < clampWinRate(isUpEnv ? 0.60 : 0.40);
       const basePnl = win ? getRandomFloat(0.01, 0.03, 3) : -getRandomFloat(0.01, 0.04, 3);
       pnlRate = basePnl * pnlVolatilityMultiplier;
 
     } else if (actionType === 'DOUBLE_DOWN') {
       // 攤平 / 加碼 ALL IN
-      const win = Math.random() < clampWinRate(isUpEnv ? 0.38 : 0.15);
+      const win = Math.random() < clampWinRate(isUpEnv ? 0.25 : 0.15);
       const basePnl = win ? getRandomFloat(0.15, 0.35, 3) : -getRandomFloat(0.20, 0.35, 3);
       pnlRate = basePnl * pnlVolatilityMultiplier;
       feeRate = 0.0044;
