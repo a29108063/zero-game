@@ -634,41 +634,71 @@
     stopTimer();
     const env = state.phase === 'OPEN' ? state.currentEnv : state.currentMidEnv;
     const isUpEnv = env.type === 'up';
+    
+    // 💡【核心新增】取得當前大盤漲跌幅絕對值（例如 changeRate 為 0.035 時，envMagnitude 為 0.035）
+    // 這代表當前市場的「動能／波動強度」
+    const envMagnitude = Math.abs(env.changeRate || 0.02);
+    
+    // 💡【勝率動態加成】大盤漲跌幅度越猛，勝率偏移越明顯（最大加成 +/- 15%）
+    // 牛市狂飆時大盤 +3.5%，勝率額外 +10.5%；熊市血洗時 -3.5%，勝率額外 -10.5%
+    const winRateBonus = isUpEnv ? (envMagnitude * 3.0) : -(envMagnitude * 3.0);
+    const clampWinRate = (baseRate) => Math.min(0.92, Math.max(0.08, baseRate + winRateBonus));
+
+    // 💡【報酬率倍率加成】大盤波動越大，獲利與虧損的震幅也跟著放大
+    const pnlVolatilityMultiplier = 1.0 + (envMagnitude * 10); // 例如 3.5% 漲跌幅會放大 1.35 倍損益
+
     let pnlRate = 0;
     let feeRate = 0;
 
     if (actionType === 'CASH') {
-      const win = Math.random() < (isUpEnv ? 0.58 : 0.38);
-      pnlRate = win ? getRandomFloat(0.02, 0.05, 3) : -getRandomFloat(0.02, 0.05, 3);
+      // 現股買進：基礎勝率根據大盤動態調整
+      const win = Math.random() < clampWinRate(isUpEnv ? 0.58 : 0.38);
+      const basePnl = win ? getRandomFloat(0.02, 0.05, 3) : -getRandomFloat(0.02, 0.05, 3);
+      pnlRate = basePnl * pnlVolatilityMultiplier;
       feeRate = 0.001425;
       state.shares = Math.floor((state.assets * 0.7) / (state.taiex / 1000));
+
     } else if (actionType === 'MARGIN') {
-      const win = Math.random() < (isUpEnv ? 0.50 : 0.25);
-      pnlRate = win ? getRandomFloat(0.10, 0.25, 3) : -getRandomFloat(0.10, 0.25, 3);
+      // 融資槓桿：高度受大盤波幅影響
+      const win = Math.random() < clampWinRate(isUpEnv ? 0.50 : 0.25);
+      const basePnl = win ? getRandomFloat(0.10, 0.25, 3) : -getRandomFloat(0.10, 0.25, 3);
+      pnlRate = basePnl * pnlVolatilityMultiplier;
       feeRate = 0.0020;
       state.shares = Math.floor((state.assets * 2.0) / (state.taiex / 1000));
+
     } else if (actionType === 'DAY_TRADE') {
+      // 當沖交易
       state.dayTradeCount++;
-      const win = Math.random() < (isUpEnv ? 0.45 : 0.28);
-      pnlRate = win ? getRandomFloat(0.08, 0.15, 3) : -getRandomFloat(0.08, 0.15, 3);
+      const win = Math.random() < clampWinRate(isUpEnv ? 0.45 : 0.28);
+      const basePnl = win ? getRandomFloat(0.08, 0.15, 3) : -getRandomFloat(0.08, 0.15, 3);
+      pnlRate = basePnl * pnlVolatilityMultiplier;
       feeRate = 0.0015;
       state.shares = 0;
+
     } else if (actionType === 'HOLD') {
-      const win = Math.random() < (isUpEnv ? 0.60 : 0.35);
-      pnlRate = win ? getRandomFloat(0.01, 0.03, 3) : -getRandomFloat(0.01, 0.03, 3);
+      // 按兵不動
+      const win = Math.random() < clampWinRate(isUpEnv ? 0.60 : 0.35);
+      const basePnl = win ? getRandomFloat(0.01, 0.03, 3) : -getRandomFloat(0.01, 0.03, 3);
+      pnlRate = basePnl * pnlVolatilityMultiplier;
+
     } else if (actionType === 'TAKE_PROFIT') {
+      // 獲利入袋 / 停損停利
       const cutRatio = getRandomFloat(0.3, 0.7, 2);
       state.shares = Math.floor(state.shares * (1 - cutRatio));
-      const win = Math.random() < (isUpEnv ? 0.68 : 0.52);
-      pnlRate = win ? getRandomFloat(0.01, 0.03, 3) : -getRandomFloat(0.01, 0.04, 3);
+      const win = Math.random() < clampWinRate(isUpEnv ? 0.68 : 0.52);
+      const basePnl = win ? getRandomFloat(0.01, 0.03, 3) : -getRandomFloat(0.01, 0.04, 3);
+      pnlRate = basePnl * pnlVolatilityMultiplier;
+
     } else if (actionType === 'DOUBLE_DOWN') {
-      const win = Math.random() < (isUpEnv ? 0.38 : 0.15);
-      pnlRate = win ? getRandomFloat(0.15, 0.35, 3) : -getRandomFloat(0.20, 0.35, 3);
+      // 攤平 / 加碼 ALL IN
+      const win = Math.random() < clampWinRate(isUpEnv ? 0.38 : 0.15);
+      const basePnl = win ? getRandomFloat(0.15, 0.35, 3) : -getRandomFloat(0.20, 0.35, 3);
+      pnlRate = basePnl * pnlVolatilityMultiplier;
       feeRate = 0.0044;
       state.shares = state.shares === 0 
         ? Math.floor((state.assets * 0.7) / (state.taiex / 1000))
         : state.shares * 2;
-      }
+    }
 
   // --- 黃金/美元避險戰術 對沖總資產變動機制 ---
   if (state.pendingTacticalChoice && state.pendingTacticalChoice.type === 'HEDGE_GOLD_USD') {
